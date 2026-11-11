@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cashpower Watch</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;800&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: one phone-width column; a single colour block that changes with how urgent things are, holding a meter-style LCD; everything else is quiet. */
+:root{
+  --paper:#f2f4ef;
+  --card:#ffffff;
+  --ink:#16201b;
+  --muted:#53615a;
+  --line:#d6dcd3;
+  --accent:#0e5a48;
+  --on-accent:#ffffff;
+  --lcd:#c9d6bf;
+  --lcd-ink:#16231b;
+  --good:#136c41;
+  --good-bg:#e0f3e7;
+  --warn:#8a5200;
+  --warn-bg:#fdecc8;
+  --bad:#b0241c;
+  --bad-bg:#fbe5e3;
+  --amber:#f0a81c;
+  --on-amber:#2b1d00;
+  --slate:#2a3a32;
+  --shadow:0 1px 2px rgba(22,32,27,.06),0 6px 20px rgba(22,32,27,.06);
+  --display:"Barlow Condensed","Roboto Condensed","sans-serif-condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0d1411;
+    --card:#17211c;
+    --ink:#e9f1ec;
+    --muted:#a0b1a7;
+    --line:#2b3b33;
+    --accent:#74d6b7;
+    --on-accent:#0d1411;
+    --lcd:#c9d6bf;
+    --lcd-ink:#16231b;
+    --good:#66d49a;
+    --good-bg:#12301f;
+    --warn:#f4bd5c;
+    --warn-bg:#3a2c0e;
+    --bad:#ff958c;
+    --bad-bg:#3a1917;
+    --amber:#f0a81c;
+    --on-amber:#2b1d00;
+    --slate:#24332b;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.25);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0d1411;
+  --card:#17211c;
+  --ink:#e9f1ec;
+  --muted:#a0b1a7;
+  --line:#2b3b33;
+  --accent:#74d6b7;
+  --on-accent:#0d1411;
+  --lcd:#c9d6bf;
+  --lcd-ink:#16231b;
+  --good:#66d49a;
+  --good-bg:#12301f;
+  --warn:#f4bd5c;
+  --warn-bg:#3a2c0e;
+  --bad:#ff958c;
+  --bad-bg:#3a1917;
+  --amber:#f0a81c;
+  --on-amber:#2b1d00;
+  --slate:#24332b;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.25);
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;-webkit-text-size-adjust:100%;overflow-wrap:anywhere}
+h1,h2,h3,p,ul,ol,fieldset,legend{margin:0;padding:0}
+ul,ol{list-style:none}
+fieldset{border:0;min-width:0}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+.wrap{max-width:600px;margin:0 auto;padding:16px 16px 56px;display:flex;flex-direction:column;gap:16px}
+.num{font-variant-numeric:tabular-nums}
+
+.brand{display:flex;align-items:center;gap:12px;padding-top:4px}
+.brand svg{flex:none}
+.brand h1{font-family:var(--display);font-weight:800;font-size:34px;line-height:1;letter-spacing:.01em;text-transform:uppercase}
+.lede{color:var(--muted);max-width:46ch}
+.chip{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--muted);font-size:14px}
+.chip::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.chip.is-account::before{background:var(--good)}
+.chip.is-warn{color:var(--bad);border-color:var(--bad)}
+.chip.is-warn::before{background:var(--bad)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:10px 18px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font-weight:700;text-decoration:none;text-align:center}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.danger{color:var(--bad);border-color:var(--bad);background:transparent}
+.btn.quiet{border-color:transparent;background:transparent;color:var(--accent);padding-left:8px;padding-right:8px}
+.btn.small{min-height:38px;padding:6px 12px;font-size:14px;border-radius:10px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn.block{width:100%}
+.btn-row{display:flex;flex-wrap:wrap;gap:10px}
+.btn-row > .grow{flex:1 1 140px}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:var(--muted);flex:none}
+.icon-btn:hover{border-color:var(--bad);color:var(--bad)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+.pad{padding:16px}
+.stack{display:flex;flex-direction:column;gap:12px}
+.eyebrow{font-family:var(--display);font-weight:600;font-size:15px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.h2{font-family:var(--display);font-weight:800;font-size:26px;line-height:1.05;text-wrap:balance}
+.muted{color:var(--muted)}
+.small{font-size:14px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:14px;font-weight:700}
+.pill.good{background:var(--good-bg);color:var(--good)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.bad{background:var(--bad-bg);color:var(--bad)}
+.pill.plain{background:transparent;color:var(--muted);border:1px solid var(--line)}
+.tag{display:inline-block;padding:1px 8px;border-radius:6px;border:1px dashed var(--muted);color:var(--muted);font-family:var(--body);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;vertical-align:middle}
+.notice{padding:12px 14px;border-radius:12px;border:1px dashed var(--muted);color:var(--muted);font-size:15px;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between}
+.alert{padding:12px 14px;border-radius:12px;background:var(--warn-bg);color:var(--warn);font-size:15px;font-weight:700}
+.steps{display:flex;flex-direction:column;gap:10px;counter-reset:s}
+.steps li{display:flex;gap:12px;align-items:flex-start}
+.steps li::before{counter-increment:s;content:counter(s);font-family:var(--display);font-weight:800;font-size:22px;line-height:1;width:30px;height:30px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:flex;align-items:center;justify-content:center;flex:none}
+
+/* meter card on the list */
+.mcard{display:flex;flex-direction:column;gap:8px;width:100%;text-align:left;padding:16px;border-radius:16px;border:1px solid var(--line);background:var(--card);box-shadow:var(--shadow);border-left:6px solid var(--muted)}
+.mcard.lvl-good{border-left-color:var(--good)}
+.mcard.lvl-warn{border-left-color:var(--amber)}
+.mcard.lvl-bad,.mcard.lvl-empty{border-left-color:var(--bad)}
+.mcard:hover{border-color:var(--accent)}
+.mcard .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.mcard .name{font-family:var(--display);font-weight:800;font-size:26px;line-height:1.05}
+.mcard .go{color:var(--accent);font-weight:700;white-space:nowrap}
+.mcard .big{font-family:var(--display);font-weight:800;font-size:34px;line-height:1}
+.mcard .foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px}
+
+/* meter header + hero */
+.back{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:6px 10px 6px 4px;border:0;background:transparent;color:var(--accent);font-weight:700;border-radius:10px;align-self:flex-start}
+.title{font-family:var(--display);font-weight:800;font-size:30px;line-height:1.05;text-wrap:balance}
+.hero{border-radius:20px;padding:18px;display:flex;flex-wrap:wrap;align-items:center;gap:16px;box-shadow:var(--shadow);background:var(--slate);color:#ffffff}
+.hero.lvl-good{background:#0e5a48;color:#ffffff}
+.hero.lvl-warn{background:var(--amber);color:var(--on-amber)}
+.hero.lvl-bad,.hero.lvl-empty{background:#a8231b;color:#ffffff}
+.hero-main{flex:1 1 180px;min-width:0;display:flex;flex-direction:column;gap:6px}
+.hero-lab{font-family:var(--display);font-weight:600;font-size:15px;letter-spacing:.09em;text-transform:uppercase;opacity:.82}
+.hero-big{font-family:var(--display);font-weight:800;font-size:58px;line-height:.95;letter-spacing:.005em;white-space:nowrap}
+.hero-big.words{font-size:40px;white-space:normal;line-height:1}
+.hero-line{font-size:17px}
+.hero-buy{align-self:flex-start;margin-top:2px;padding:5px 12px;border-radius:999px;font-weight:700;background:rgba(255,255,255,.2)}
+.hero.lvl-warn .hero-buy{background:rgba(43,29,0,.14)}
+.lcd{flex:0 0 auto;min-width:126px;background:var(--lcd);color:var(--lcd-ink);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;align-items:flex-end;gap:2px;border:3px solid rgba(0,0,0,.28);box-shadow:inset 0 2px 6px rgba(0,0,0,.18)}
+.lcd-lab{font-family:var(--display);font-weight:600;font-size:12px;letter-spacing:.1em;text-transform:uppercase;align-self:flex-start;opacity:.8}
+.lcd-num{font-family:var(--display);font-weight:800;font-size:44px;line-height:1;letter-spacing:.03em;white-space:nowrap}
+.lcd-unit{font-size:12px;font-weight:700;opacity:.8}
+
+.tabs{display:flex;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:4px}
+.tabs button{flex:1 1 auto;min-height:44px;border:0;border-radius:10px;background:transparent;color:var(--muted);font-weight:700;padding:6px 8px;white-space:nowrap}
+.tabs button[aria-selected="true"]{background:var(--accent);color:var(--on-accent)}
+
+.tiles{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.tile{padding:14px;border-radius:14px;border:1px solid var(--line);background:var(--card);min-width:0}
+.tile .v{font-family:var(--display);font-weight:800;font-size:30px;line-height:1.05;white-space:nowrap}
+.tile .k{font-weight:700}
+.tile .s{font-size:13px;color:var(--muted)}
+
+/* lists */
+.list li{display:flex;align-items:center;gap:12px;padding:12px 12px 12px 16px;border-bottom:1px solid var(--line)}
+.list li:last-child{border-bottom:0}
+.list .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.list .nm{font-weight:700}
+.list .sub{font-size:14px;color:var(--muted)}
+.list .note{font-size:14px}
+.list .note.flag{color:var(--bad);font-weight:700}
+.list .amt{font-family:var(--display);font-weight:800;font-size:22px;white-space:nowrap;text-align:right;flex:none}
+.list .amt small{display:block;font-family:var(--body);font-weight:400;font-size:13px;color:var(--muted)}
+.list .mark{width:10px;height:38px;border-radius:5px;flex:none;background:var(--line)}
+.list .mark.topup{background:var(--amber)}
+.list .mark.reading{background:var(--accent)}
+.rowbtn{flex:1;min-width:0;display:flex;align-items:center;gap:12px;border:0;background:transparent;text-align:left;padding:4px;border-radius:8px;min-height:44px}
+.rowbtn:hover{background:var(--paper)}
+.usebar{height:6px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:4px}
+.usebar > span{display:block;height:100%;background:var(--accent);border-radius:999px}
+.cardfoot{padding:14px 16px;border-top:1px solid var(--line)}
+.cardhead{padding:14px 16px;border-bottom:1px solid var(--line)}
+.rows > div{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.rows > div:last-child{border-bottom:0}
+.rows > div > span:first-child{color:var(--muted)}
+.rows > div > span:last-child{text-align:right;font-weight:700}
+
+/* forms */
+.field{display:flex;flex-direction:column;gap:6px}
+.field label,.field legend{font-weight:700}
+.field input[type="text"],.field input[type="number"],.field input[type="datetime-local"],.field textarea,.field select{width:100%;min-height:48px;padding:10px 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:var(--ink)}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent)}
+.hint{font-size:14px;color:var(--muted)}
+.err{color:var(--bad);font-weight:700}
+.err:empty{display:none}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.answer{padding:12px 14px;border-radius:12px;background:var(--good-bg);color:var(--good);font-weight:700}
+.answer:empty{display:none}
+.calc{display:flex;align-items:center;gap:10px}
+.calc span{font-family:var(--display);font-weight:800;font-size:26px}
+.calc input{flex:1;min-width:0;min-height:48px;padding:10px 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:var(--ink)}
+
+dialog#sheet{border:0;padding:0;background:var(--card);color:var(--ink);width:min(540px,100%);max-width:100%;max-height:90vh;margin:auto auto 0;border-radius:20px 20px 0 0;box-shadow:0 -8px 40px rgba(0,0,0,.3)}
+dialog#sheet::backdrop{background:rgba(8,14,11,.6)}
+@media (min-width:620px){dialog#sheet{margin:auto;border-radius:20px}}
+.sheet{display:flex;flex-direction:column;gap:14px;padding:20px 18px 22px;overflow:auto;max-height:90vh}
+.sheet h2{font-family:var(--display);font-weight:800;font-size:28px;line-height:1.05;text-wrap:balance}
+.sheet textarea.msg{width:100%;min-height:180px;padding:12px;border-radius:12px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);font-size:15px;line-height:1.45;resize:vertical}
+.sheet textarea.code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;min-height:110px}
+hr{border:0;border-top:1px solid var(--line);margin:2px 0;width:100%}
+.foot-note{font-size:13px;color:var(--muted)}
+.made-by{text-align:center;font-size:13px;color:var(--muted);padding:6px 16px 22px;letter-spacing:.02em}
+.made-by b{font-family:var(--display);font-weight:800;font-size:15px;color:var(--accent);letter-spacing:.04em}
+
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:999px;font-weight:700;font-size:15px;max-width:calc(100% - 32px);opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.on{opacity:1}
+@media (prefers-reduced-motion: reduce){#toast{transition:none}}
+@media (max-width:380px){
+  .hero-big{font-size:50px}
+  .tabs button{font-size:15px;padding:6px 5px}
+  .two{grid-template-columns:minmax(0,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="view"></div>
+<footer class="made-by">Made by <b>PK</b></footer>
+<dialog id="sheet" aria-labelledby="sheet-title"></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* =====================================================================
+   Core: pure rules for time, units and money. No DOM here.
+   ===================================================================== */
+var Core=(function(){
+  var WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var DAY=86400000, TOL=0.15, WINDOW=14, MIN_SPAN=0.25, MAX_EVENTS=2000;
+  /* Typical power of common appliances, in watts, with typical hours of running a day. Starting points only: the label on the appliance is the truth. */
+  var PRESETS=[['LED bulb',10,6],['Tube light',20,6],['Standing fan',55,10],['Ceiling fan',75,10],['Television',80,6],['Decoder or Wi-Fi router',15,12],['Phone charger',10,4],['Laptop',60,5],['Fridge',120,9],['Chest freezer',150,10],['Electric iron',1000,0.5],['Electric kettle',1800,0.25],['Rice cooker',700,1],['Blender',400,0.1],['Microwave',1000,0.25],['Washing machine',500,0.5],['Water pump',750,1],['Air conditioner (1 hp)',1000,6]];
+
+  function pad(n){return n<10?'0'+n:''+n;}
+  function dim(y,m){return new Date(Date.UTC(y,m,0)).getUTCDate();}
+  function isT(s){
+    if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s))return false;
+    var y=+s.slice(0,4),m=+s.slice(5,7),d=+s.slice(8,10),h=+s.slice(11,13),mi=+s.slice(14,16);
+    return y>=2000&&y<=2200&&m>=1&&m<=12&&d>=1&&d<=dim(y,m)&&h<=23&&mi<=59;
+  }
+  /* Wall-clock time as a plain number of milliseconds. The clock on the wall is what the user reads, so no time zones are involved. */
+  function ts(s){return Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10),+s.slice(11,13),+s.slice(14,16));}
+  function fromTs(ms){var d=new Date(ms);return d.getUTCFullYear()+'-'+pad(d.getUTCMonth()+1)+'-'+pad(d.getUTCDate())+'T'+pad(d.getUTCHours())+':'+pad(d.getUTCMinutes());}
+  function nowT(d){d=d||new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());}
+  function fmtDay(t,now){
+    var d=new Date(ts(t.slice(0,10)+'T00:00'));
+    var out=WD[d.getUTCDay()]+' '+d.getUTCDate()+' '+MO[d.getUTCMonth()];
+    if(!now||t.slice(0,4)!==now.slice(0,4))out+=' '+d.getUTCFullYear();
+    return out;
+  }
+  function fmtClock(t){var h=+t.slice(11,13);return (h%12||12)+':'+t.slice(14,16)+(h<12?' am':' pm');}
+  function dayDiff(a,b){return Math.round((ts(a.slice(0,10)+'T00:00')-ts(b.slice(0,10)+'T00:00'))/DAY);}
+  function fmtWhen(t,now){
+    var n=dayDiff(t,now);
+    if(n===0)return 'Today, '+fmtClock(t);
+    if(n===-1)return 'Yesterday, '+fmtClock(t);
+    if(n===1)return 'Tomorrow, '+fmtClock(t);
+    return fmtDay(t,now)+', '+fmtClock(t);
+  }
+  function partOfDay(t){var h=+t.slice(11,13);return h<5?'before dawn':h<12?'in the morning':h<17?'in the afternoon':h<21?'in the evening':'at night';}
+  function r2(n){return Math.round(n*100)/100;}
+  function fmtU(n){return (Math.round(n*10)/10).toFixed(1);}
+  function fmtD(n){return 'D'+String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
+  function fmtRate(n){return 'D'+n.toFixed(2);}
+  /* A length of time in plain words: hours under a day, then days to one decimal, whole days from ten. */
+  function fmtDur(days){
+    if(days<1){var h=Math.round(days*24);if(h<1)return 'less than an hour';return h===1?'1 hour':h+' hours';}
+    if(days>=10)return Math.round(days)+' days';
+    var d=Math.round(days*10)/10,s=(d%1===0)?String(d):d.toFixed(1);
+    return s+(d===1?' day':' days');
+  }
+  /* Read a number the way people type it: "24.6", "24,6", " 500 ". NaN when it is not a plain number. */
+  function parseNum(v){
+    var s=String(v===undefined||v===null?'':v).trim().replace(/\s+/g,'');
+    if(/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(s))s=s.replace(/,/g,'');
+    else s=s.replace(',','.');
+    if(!/^\d+(\.\d*)?$|^\.\d+$/.test(s))return NaN;
+    return Number(s);
+  }
+  function clean(v,max){return typeof v==='string'?v.replace(/\s+/g,' ').trim().slice(0,max):'';}
+  function idOk(v,min){return typeof v==='string'&&new RegExp('^[A-Za-z0-9]{'+(min||1)+',40}$').test(v);}
+  function num(v,lo,hi){return typeof v==='number'&&isFinite(v)&&v>=lo&&v<=hi;}
+  function newId(prefix,rnd,len){
+    var a='abcdefghijklmnopqrstuvwxyz0123456789',s=prefix;
+    for(var i=0;i<(len||10);i++)s+=a.charAt(Math.floor(rnd()*a.length));
+    return s;
+  }
+  /* Time order. At the same minute a reading counts as taken before a top-up; otherwise the order things were entered in is kept (the sort is stable). */
+  function sortEvents(events){
+    return events.slice().sort(function(a,b){
+      var d=ts(a.t)-ts(b.t);if(d)return d;
+      if(a.kind!==b.kind)return a.kind==='reading'?-1:1;
+      return 0;
+    });
+  }
+
+  function normalizeMeter(raw){
+    if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;
+    if(!idOk(raw.id,4))return null;
+    var updatedAt=(typeof raw.updatedAt==='number'&&isFinite(raw.updatedAt)&&raw.updatedAt>=0)?Math.floor(raw.updatedAt):0;
+    if(raw.deleted===true)return {id:raw.id,deleted:true,updatedAt:updatedAt};
+    var name=clean(raw.name,40);if(!name)return null;
+    var events=[],seen={},i,x;
+    if(Array.isArray(raw.events)){
+      for(i=0;i<raw.events.length;i++){
+        x=raw.events[i];
+        if(!x||typeof x!=='object'||!idOk(x.id)||seen[x.id]||!isT(x.t))continue;
+        if(x.kind==='reading'){
+          if(!num(x.units,0,99999.99))continue;
+          seen[x.id]=true;events.push({id:x.id,kind:'reading',t:x.t,units:r2(x.units)});
+        }else if(x.kind==='topup'){
+          if(!num(x.units,0.01,99999.99)||!num(x.amount,1,10000000)||Math.floor(x.amount)!==x.amount)continue;
+          var e={id:x.id,kind:'topup',t:x.t,units:r2(x.units),amount:x.amount};
+          if(num(x.after,0,99999.99)&&x.after>=x.units-TOL)e.after=r2(x.after);
+          seen[x.id]=true;events.push(e);
+        }
+      }
+    }
+    events=sortEvents(events);
+    if(events.length>MAX_EVENTS)events=events.slice(events.length-MAX_EVENTS);
+    var appliances=[];seen={};
+    if(Array.isArray(raw.appliances)){
+      for(i=0;i<raw.appliances.length&&appliances.length<60;i++){
+        x=raw.appliances[i];
+        if(!x||typeof x!=='object'||!idOk(x.id)||seen[x.id])continue;
+        var an=clean(x.name,40);
+        if(!an||!num(x.watts,0.1,100000)||!num(x.hours,0.01,24))continue;
+        seen[x.id]=true;
+        appliances.push({id:x.id,name:an,watts:r2(x.watts),hours:r2(x.hours),count:(num(x.count,1,99)&&Math.floor(x.count)===x.count)?x.count:1});
+      }
+    }
+    var sharers=[];seen={};
+    if(Array.isArray(raw.sharers)){
+      for(i=0;i<raw.sharers.length&&sharers.length<50;i++){
+        x=raw.sharers[i];
+        if(!x||typeof x!=='object'||!idOk(x.id)||seen[x.id])continue;
+        var sn=clean(x.name,40);if(!sn)continue;
+        seen[x.id]=true;
+        sharers.push({id:x.id,name:sn,shares:(num(x.shares,1,20)&&Math.floor(x.shares)===x.shares)?x.shares:1});
+      }
+    }
+    var m={id:raw.id,name:name,lowDays:(num(raw.lowDays,1,14)&&Math.floor(raw.lowDays)===raw.lowDays)?raw.lowDays:3,events:events,appliances:appliances,sharers:sharers,
+      createdAt:(typeof raw.createdAt==='number'&&isFinite(raw.createdAt))?raw.createdAt:0,updatedAt:updatedAt};
+    if(raw.example===true)m.example=true;
+    return m;
+  }
+
+  function applianceUnits(a){return a.watts*a.hours*a.count/1000;}
+  function applianceTotal(m){var s=0;for(var i=0;i<m.appliances.length;i++)s+=applianceUnits(m.appliances[i]);return s;}
+
+  /* Everything the screens need, worked out from the meter's history as of `now`. */
+  function analyse(m,now){
+    var ev=sortEvents(m.events),nowMs=ts(now),anchor=null,added=0,intervals=[],notes={},tops=[],topNotes={},i,e;
+    function learn(a,add,u,t,id){
+      var days=(t-a.t)/DAY;
+      if(days<=0)return;
+      var used=r2(a.u+add-u),iv={from:a.t,to:t,days:days,used:used,gap:false,perDay:0};
+      if(used<-TOL){iv.gap=true;iv.rise=r2(-used);iv.used=0;}
+      else if(used<0)iv.used=0;
+      if(!iv.gap)iv.perDay=iv.used/days;
+      intervals.push(iv);notes[id]=iv;
+    }
+    for(i=0;i<ev.length;i++){
+      e=ev[i];var t=ts(e.t);
+      if(e.kind==='topup'){
+        var rate=e.amount/e.units,prev=tops.length?tops[tops.length-1]:null;
+        topNotes[e.id]={rate:rate,prevRate:prev?prev.amount/prev.units:null};
+        tops.push(e);
+        if(typeof e.after==='number'){
+          if(anchor)learn(anchor,added,Math.max(0,r2(e.after-e.units)),t,e.id);
+          anchor={u:e.after,t:t};added=0;
+        }else added=r2(added+e.units);
+      }else{
+        if(anchor)learn(anchor,added,e.units,t,e.id);
+        anchor={u:e.units,t:t};added=0;
+      }
+    }
+    var res={intervals:intervals,notes:notes,topNotes:topNotes,anchor:anchor,added:added,avg:null,avgSource:null,basisDays:0,est:null,daysLeft:null,runOut:null,buyDay:null,buyToday:false,
+      level:'none',since:null,rate:null,costPerDay:null,month:{spent:0,units:0,count:0},gaps:0,appliances:applianceTotal(m),tops:tops.length,readings:0};
+    for(i=0;i<ev.length;i++)if(ev[i].kind==='reading'||typeof ev[i].after==='number')res.readings++;
+    for(i=0;i<intervals.length;i++)if(intervals[i].gap)res.gaps++;
+    if(anchor){
+      var cut=anchor.t-WINDOW*DAY,sd=0,su=0;
+      for(i=0;i<intervals.length;i++){var iv=intervals[i];if(!iv.gap&&iv.to>=cut){sd+=iv.days;su+=iv.used;}}
+      if(sd>=MIN_SPAN){res.avg=su/sd;res.avgSource='meter';res.basisDays=sd;}
+    }
+    if(res.avg===null&&res.appliances>0){res.avg=res.appliances;res.avgSource='appliances';}
+    if(tops.length){
+      var a=0,u=0;
+      for(i=Math.max(0,tops.length-3);i<tops.length;i++){a+=tops[i].amount;u+=tops[i].units;}
+      res.rate=a/u;
+    }
+    var ym=now.slice(0,7);
+    for(i=0;i<tops.length;i++)if(tops[i].t.slice(0,7)===ym){res.month.spent+=tops[i].amount;res.month.units=r2(res.month.units+tops[i].units);res.month.count++;}
+    if(res.avg!==null&&res.rate!==null)res.costPerDay=res.avg*res.rate;
+    if(anchor){
+      var base=r2(anchor.u+added);
+      res.since=Math.max(0,(nowMs-anchor.t)/DAY);
+      res.est=res.avg!==null?Math.max(0,base-res.avg*res.since):base;
+      if(res.avg===null)res.level='wait';
+      else if(res.est<=0.05)res.level='empty';
+      else if(res.avg<=0.0001)res.level='good';
+      else{
+        res.daysLeft=res.est/res.avg;
+        var out=nowMs+res.daysLeft*DAY;
+        res.runOut=fromTs(out);
+        var buy=fromTs(out-DAY);
+        res.buyToday=res.daysLeft<=1||buy.slice(0,10)<=now.slice(0,10);
+        res.buyDay=buy;
+        res.level=res.daysLeft<=1?'bad':res.daysLeft<=m.lowDays?'warn':'good';
+      }
+    }
+    return res;
+  }
+  function buyText(a,now){return a.buyToday?'Buy today':'Buy by '+fmtDay(a.buyDay,now);}
+  /* What an amount of money buys at the price of the user's own recent receipts. */
+  function quote(amount,a){
+    if(a.rate===null||!(amount>0))return null;
+    var units=amount/a.rate;
+    return {units:units,days:(a.avg!==null&&a.avg>0.0001)?units/a.avg:null};
+  }
+  /* Split whole dalasi by shares so the parts always add up to the amount exactly. */
+  function split(amount,sharers){
+    var S=0,i,parts=[],given=0;
+    for(i=0;i<sharers.length;i++)S+=sharers[i].shares;
+    if(!S)return [];
+    for(i=0;i<sharers.length;i++){
+      var raw=amount*sharers[i].shares/S,fl=Math.floor(raw+1e-9);
+      parts.push({id:sharers[i].id,name:sharers[i].name,shares:sharers[i].shares,pays:fl,frac:raw-fl,i:i});
+      given+=fl;
+    }
+    var order=parts.slice().sort(function(a,b){return b.frac-a.frac||a.i-b.i;});
+    for(i=0;given<amount&&i<order.length;i++){order[i].pays++;given++;}
+    return parts.map(function(p){return {id:p.id,name:p.name,shares:p.shares,pays:p.pays};});
+  }
+  function validateReading(units,t,now){
+    if(isNaN(units)||units<0||units>99999.99)return 'Enter the units showing on the meter, for example 24.6.';
+    if(!isT(t))return 'Choose the date and time.';
+    if(ts(t)>ts(now)+5*60000)return 'That time has not come yet. Choose now or earlier.';
+    return '';
+  }
+  function validateTopup(amount,units,after,t,now){
+    if(isNaN(amount)||amount<1||Math.floor(amount)!==amount||amount>10000000)return 'Enter the amount you paid in whole dalasi, for example 500.';
+    if(isNaN(units)||units<=0||units>99999.99)return 'Enter the units printed on the receipt, for example 35.6.';
+    if(after!==null){
+      if(isNaN(after)||after<0||after>99999.99)return 'Enter the units showing on the meter after loading, or leave that box empty.';
+      if(after<units-TOL)return 'The meter cannot show fewer units than you just loaded. Check the two numbers.';
+    }
+    if(!isT(t))return 'Choose the date and time.';
+    if(ts(t)>ts(now)+5*60000)return 'That time has not come yet. Choose now or earlier.';
+    return '';
+  }
+  function validateAppliance(name,watts,hours,count){
+    if(!clean(name,40))return 'Give the appliance a name.';
+    if(isNaN(watts)||watts<0.1||watts>100000)return 'Enter the power in watts. It is printed on the appliance label, for example 55.';
+    if(isNaN(hours)||hours<0.01||hours>24)return 'Enter the hours it runs in a day, from 0.01 to 24.';
+    if(isNaN(count)||count<1||count>99||Math.floor(count)!==count)return 'Enter how many you have, from 1 to 99.';
+    return '';
+  }
+
+  function msgStatus(m,a,now){
+    var L=['*Cashpower: '+m.name+'*'];
+    if(a.level==='none')L.push('No meter reading yet.');
+    else if(a.level==='wait')L.push(fmtU(a.est)+' units at the last reading ('+fmtWhen(fromTs(a.anchor.t),now)+').');
+    else if(a.level==='empty')L.push('The units may be finished. Please check the meter.');
+    else{
+      L.push('About '+fmtU(a.est)+' units left'+(a.daysLeft!==null?', about '+fmtDur(a.daysLeft)+'.':'.'));
+      if(a.runOut){L.push('They run out around '+fmtDay(a.runOut)+', '+partOfDay(a.runOut)+'.');L.push(buyText(a)+'.');}
+    }
+    if(a.avg!==null&&a.avg>0.0001)L.push('We use about '+fmtU(a.avg)+' units a day'+(a.costPerDay!==null?' (about '+fmtD(a.costPerDay)+' a day).':'.'));
+    return L.join('\n');
+  }
+  function msgSplit(m,amount,parts){
+    var L=['*Cashpower top-up: '+m.name+'*',fmtD(amount)+' shared like this:'];
+    for(var i=0;i<parts.length;i++)L.push('- '+parts[i].name+' ('+parts[i].shares+(parts[i].shares===1?' share':' shares')+'): '+fmtD(parts[i].pays));
+    return L.join('\n');
+  }
+
+  return {PRESETS:PRESETS,TOL:TOL,MAX_EVENTS:MAX_EVENTS,isT:isT,ts:ts,fromTs:fromTs,nowT:nowT,fmtDay:fmtDay,fmtClock:fmtClock,fmtWhen:fmtWhen,partOfDay:partOfDay,dayDiff:dayDiff,r2:r2,fmtU:fmtU,fmtD:fmtD,fmtRate:fmtRate,fmtDur:fmtDur,
+    parseNum:parseNum,clean:clean,newId:newId,sortEvents:sortEvents,normalizeMeter:normalizeMeter,applianceUnits:applianceUnits,applianceTotal:applianceTotal,analyse:analyse,buyText:buyText,quote:quote,split:split,
+    validateReading:validateReading,validateTopup:validateTopup,validateAppliance:validateAppliance,msgStatus:msgStatus,msgSplit:msgSplit};
+})();
+window.CashpowerCore=Core;
+
+/* =====================================================================
+   App state, storage and account sync
+   ===================================================================== */
+var KEY='cashpower-watch-v1';
+var state={meters:[],pristine:false};
+var ui={view:'home',mid:null,tab:'now',calc:''};
+var storageOK=true;
+var view=document.getElementById('view');
+var sheet=document.getElementById('sheet');
+var toastEl=document.getElementById('toast');
+var downloadsCap=null;
+
+function N(){return Core.nowT();}
+function rnd(){
+  try{var a=new Uint32Array(1);window.crypto.getRandomValues(a);return a[0]/4294967296;}catch(e){return Math.random();}
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function live(){
+  return state.meters.filter(function(m){return !m.deleted;}).sort(function(a,b){
+    if(!!a.example!==!!b.example)return a.example?1:-1;
+    return (a.createdAt||0)-(b.createdAt||0);
+  });
+}
+function M(id){for(var i=0;i<state.meters.length;i++){var m=state.meters[i];if(m.id===id&&!m.deleted)return m;}return null;}
+function indexOfMeter(id){for(var i=0;i<state.meters.length;i++)if(state.meters[i].id===id)return i;return -1;}
+
+/* A made-up household so a first-time visitor sees a working screen. Times are placed relative to now. */
+function exampleMeter(now){
+  var day=now.slice(0,10)+'T00:00',base=Core.ts(day),DAY=86400000;
+  function at(d,h,mi){return Core.fromTs(base+d*DAY+h*3600000+mi*60000);}
+  var lastMs=Math.floor((Core.ts(now)-2*3600000)/300000)*300000,prevMs=Core.ts(at(-1,7,30));
+  if(lastMs<=prevMs)lastMs=prevMs+3600000;
+  var lastUnits=Core.r2(Math.max(0.5,25.3-6.9*(lastMs-prevMs)/DAY));
+  lastUnits=Math.round(lastUnits*10)/10;
+  return Core.normalizeMeter({id:'example1',name:'Home',lowDays:3,example:true,createdAt:0,updatedAt:0,
+    events:[
+      {id:'e1',kind:'reading',t:at(-9,8,0),units:31.2},
+      {id:'e2',kind:'reading',t:at(-8,7,30),units:24.6},
+      {id:'e3',kind:'reading',t:at(-7,20,15),units:14.1},
+      {id:'e4',kind:'topup',t:at(-6,18,40),amount:500,units:35.6,after:43.9},
+      {id:'e5',kind:'reading',t:at(-4,7,45),units:33.0},
+      {id:'e6',kind:'reading',t:at(-3,7,20),units:26.1},
+      {id:'e7',kind:'topup',t:at(-2,19,5),amount:200,units:14.3,after:29.1},
+      {id:'e8',kind:'reading',t:at(-1,7,30),units:25.3},
+      {id:'e9',kind:'reading',t:Core.fromTs(lastMs),units:lastUnits}
+    ],
+    appliances:[
+      {id:'a1',name:'LED bulb',watts:10,hours:6,count:6},
+      {id:'a2',name:'Standing fan',watts:55,hours:10,count:2},
+      {id:'a3',name:'Television',watts:80,hours:6,count:1},
+      {id:'a4',name:'Fridge',watts:120,hours:9,count:1},
+      {id:'a5',name:'Chest freezer',watts:150,hours:10,count:1},
+      {id:'a6',name:'Electric iron',watts:1000,hours:0.3,count:1},
+      {id:'a7',name:'Phone charger',watts:10,hours:4,count:3}
+    ],
+    sharers:[{id:'s1',name:'Main house',shares:2},{id:'s2',name:'Lamin’s room',shares:1},{id:'s3',name:'Awa’s room',shares:1}]});
+}
+
+function loadLocal(){
+  var raw=null;
+  try{raw=window.localStorage.getItem(KEY);}catch(e){storageOK=false;}
+  if(raw){
+    try{
+      var data=JSON.parse(raw);
+      if(data&&Array.isArray(data.meters)){
+        var out=[],seen={};
+        data.meters.forEach(function(x){var m=Core.normalizeMeter(x);if(m&&!seen[m.id]){seen[m.id]=true;out.push(m);}});
+        state.meters=out;state.pristine=false;return;
+      }
+    }catch(e){}
+  }
+  state.meters=[exampleMeter(N())];state.pristine=true;
+}
+function saveLocal(){
+  if(state.pristine)return;
+  try{window.localStorage.setItem(KEY,JSON.stringify({v:1,meters:state.meters}));storageOK=true;}catch(e){storageOK=false;}
+}
+function stamp(m){m.updatedAt=Math.max(Date.now(),(m.updatedAt||0)+1);}
+/* Every change to a meter goes through here. */
+function commit(m,quiet){
+  stamp(m);state.pristine=false;saveLocal();cloudDirty(m.id);
+  if(!quiet)render();
+}
+
+/* ---- account sync: one private document per meter under the viewer's own subtree ---- */
+var Cloud={col:null,definitive:false,canWrite:true,confirmed:false,trouble:'',remote:{},dirty:{},inflight:{},fails:{},flushTimer:null,started:false};
+function cloudDirty(id){
+  if(!Cloud.col||!Cloud.definitive||!Cloud.canWrite)return;
+  Cloud.dirty[id]=true;
+  if(Cloud.flushTimer)clearTimeout(Cloud.flushTimer);
+  Cloud.flushTimer=setTimeout(flushCloud,500);
+}
+function flushCloud(){
+  Cloud.flushTimer=null;
+  if(!Cloud.col||!Cloud.canWrite)return;
+  Object.keys(Cloud.dirty).forEach(function(id){
+    if(Cloud.inflight[id])return;
+    var i=indexOfMeter(id);
+    delete Cloud.dirty[id];
+    if(i<0)return;
+    var m=state.meters[i];
+    if(!m.updatedAt)return;
+    var body=JSON.parse(JSON.stringify(m)),ref;
+    try{ref=Cloud.col.doc(id);}catch(e){return;}
+    Cloud.inflight[id]=true;
+    ref.set(body).then(function(){
+      Cloud.inflight[id]=false;Cloud.fails[id]=0;
+      Cloud.remote[id]=Math.max(Cloud.remote[id]||0,body.updatedAt);
+      Cloud.confirmed=true;Cloud.trouble='';
+      if(Cloud.dirty[id])cloudDirty(id);
+      refreshChip();
+    },function(e){
+      Cloud.inflight[id]=false;
+      var code=e&&e.code;
+      if(code==='quota_exceeded'){Cloud.canWrite=false;Cloud.trouble='full';}
+      else if(code==='invalid_argument'||code==='revoked'||code==='not_granted'||code==='capability_disabled'||code==='capability_removed'||code==='transform_error'){Cloud.canWrite=false;Cloud.confirmed=false;Cloud.trouble='';}
+      else{
+        Cloud.fails[id]=(Cloud.fails[id]||0)+1;Cloud.dirty[id]=true;Cloud.trouble='offline';
+        if(Cloud.fails[id]<=1){
+          if(Cloud.flushTimer)clearTimeout(Cloud.flushTimer);
+          Cloud.flushTimer=setTimeout(flushCloud,2000+Math.floor(Math.random()*2000));
+        }
+      }
+      refreshChip();
+    });
+  });
+}
+function applyRemote(docs){
+  var changed=false,remote={};
+  docs.forEach(function(doc){
+    if(!doc||doc.exists===false)return;
+    var raw;try{raw=doc.data();}catch(e){return;}
+    if(!raw||typeof raw!=='object')return;
+    var copy;try{copy=JSON.parse(JSON.stringify(raw));}catch(e){return;}
+    copy.id=doc.id;
+    var m=Core.normalizeMeter(copy);if(!m)return;
+    remote[m.id]=m.updatedAt;
+    var i=indexOfMeter(m.id);
+    if(i<0){state.meters.push(m);changed=true;}
+    else if(m.updatedAt>(state.meters[i].updatedAt||0)){state.meters[i]=m;changed=true;}
+  });
+  Cloud.remote=remote;
+  if(Object.keys(remote).length)Cloud.confirmed=true;
+  if(changed){
+    if(state.pristine){state.meters=state.meters.filter(function(m){return !(m.example&&!m.updatedAt);});state.pristine=false;}
+    saveLocal();
+    if(ui.view==='meter'&&!M(ui.mid)){
+      var l=live();
+      if(l.length===1){ui.mid=l[0].id;ui.tab='now';}else{ui.view='home';ui.mid=null;}
+    }
+    render();
+  }
+  return changed;
+}
+/* Once, after the first confirmed answer from the account: send up anything this device has that the account lacks. */
+function reconcile(){
+  if(state.pristine)return;
+  state.meters.forEach(function(m){
+    if(!m.updatedAt)return;
+    var r=Cloud.remote[m.id];
+    if(r===undefined||m.updatedAt>r)Cloud.dirty[m.id]=true;
+  });
+  if(Object.keys(Cloud.dirty).length)flushCloud();
+}
+function startCloud(tries){
+  if(Cloud.started)return;
+  var c=window.claude;
+  if(!c||typeof c.use!=='function'){
+    if((tries||0)<10)setTimeout(function(){startCloud((tries||0)+1);},300);
+    return;
+  }
+  Cloud.started=true;
+  Promise.resolve().then(function(){return c.use('downloads');}).then(function(d){if(d&&typeof d.save==='function')downloadsCap=d;},function(){});
+  Promise.all([Promise.resolve().then(function(){return c.use('db');}),Promise.resolve().then(function(){return c.use('user');})]).then(function(res){
+    var db=res[0],user=res[1];
+    if(!db||!user)return null;
+    return Promise.resolve(user.id()).then(function(id){
+      if(!id||typeof id!=='string')return null;
+      var col;
+      try{col=db.collection('data/users/'+id);}catch(e){return null;}
+      Cloud.col=col;
+      var timer=setTimeout(function(){if(!Cloud.definitive){Cloud.trouble='offline';refreshChip();}},10000);
+      col.onSnapshot(function(snap){
+        var def=!snap.metadata||snap.metadata.fromCache===false;
+        applyRemote(snap.docs||[]);
+        if(def){
+          clearTimeout(timer);
+          if(Cloud.trouble==='offline')Cloud.trouble='';
+          if(!Cloud.definitive){Cloud.definitive=true;setTimeout(reconcile,0);}
+        }
+        refreshChip();
+      },function(){
+        clearTimeout(timer);Cloud.col=null;Cloud.canWrite=false;Cloud.confirmed=false;Cloud.trouble='';refreshChip();
+      });
+      return null;
+    });
+  }).catch(function(){});
+}
+function storageNote(){
+  if(Cloud.col&&Cloud.canWrite&&Cloud.confirmed&&!Cloud.trouble)return {cls:'chip is-account',text:'Saved to your Claude account'};
+  if(!storageOK)return {cls:'chip is-warn',text:'Not saved: this browser blocks storage. Copy a backup before you leave.'};
+  if(Cloud.trouble==='full')return {cls:'chip is-warn',text:'Saved on this device only. Your account storage for this page is full.'};
+  if(Cloud.col&&Cloud.trouble==='offline')return {cls:'chip',text:'Saved on this device. Your account cannot be reached right now.'};
+  return {cls:'chip',text:'Saved on this device only'};
+}
+function refreshChip(){
+  var el=document.getElementById('store-chip');
+  if(el){var n=storageNote();el.className=n.cls;el.textContent=n.text;}
+}
+
+/* =====================================================================
+   Rendering
+   ===================================================================== */
+var ICON={
+  back:'<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4 6.5 10l6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  bin:'<svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M8 6V4h4v2M6 6l.7 10h6.6L14 6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  bolt:'<svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><rect x="4" y="6" width="36" height="32" rx="7" fill="var(--accent)"/><rect x="10" y="12" width="24" height="11" rx="2" fill="var(--lcd)"/><path d="M23.5 26l-5 6h4l-1.5 5 5.5-6.5h-4z" fill="var(--amber)"/></svg>'
+};
+function act(name,id){
+  var s=' data-act="'+name+'" data-fk="'+esc(name+'|'+(id===undefined?'':id))+'"';
+  if(id!==undefined)s+=' data-id="'+esc(id)+'"';
+  return s;
+}
+function levelPill(a,now){
+  if(a.level==='none')return '<span class="pill plain">No reading yet</span>';
+  if(a.level==='wait')return '<span class="pill plain">Needs one more reading</span>';
+  if(a.level==='empty')return '<span class="pill bad">Units may be finished</span>';
+  if(a.daysLeft===null)return '<span class="pill good">No units used lately</span>';
+  return '<span class="pill '+a.level+'">'+esc(Core.buyText(a,now))+'</span>';
+}
+
+function viewHome(){
+  var now=N(),meters=live(),note=storageNote(),h='';
+  h+='<header class="brand">'+ICON.bolt+'<h1>Cashpower Watch</h1></header>';
+  h+='<p class="lede">Know how many days of units you have left, and the day to buy more.</p>';
+  h+='<span id="store-chip" class="'+note.cls+'">'+esc(note.text)+'</span>';
+  if(meters.some(function(m){return m.example;}))h+='<div class="notice"><span>The meter marked Example has made-up readings so you can see how this works. Add your own meter, then delete the example.</span></div>';
+  if(!meters.length)h+='<section class="card pad stack"><h2 class="h2">No meter yet</h2><p class="muted">Add your meter and type the units it is showing. That is all it takes to start.</p></section>';
+  meters.forEach(function(m){
+    var a=Core.analyse(m,now);
+    h+='<button class="mcard lvl-'+a.level+'"'+act('open-meter',m.id)+'>';
+    h+='<span class="top"><span class="name">'+esc(m.name)+(m.example?' <span class="tag">Example</span>':'')+'</span><span class="go">Open</span></span>';
+    if(a.level==='none')h+='<span class="muted">Enter the units showing on the meter to start.</span>';
+    else if(a.level==='wait')h+='<span class="big num">'+Core.fmtU(a.est)+' units</span><span class="muted">at the last reading. Enter another reading tomorrow.</span>';
+    else if(a.level==='empty')h+='<span class="big">Units may be finished</span>';
+    else if(a.daysLeft===null)h+='<span class="big num">'+Core.fmtU(a.est)+' units left</span>';
+    else h+='<span class="big num">About '+esc(Core.fmtDur(a.daysLeft))+' left</span><span class="muted num">About '+Core.fmtU(a.est)+' units, using '+Core.fmtU(a.avg)+' a day</span>';
+    h+='<span class="foot">'+levelPill(a,now)+'</span></button>';
+  });
+  h+='<div class="btn-row"><button class="btn primary grow"'+act('add-meter')+'>Add a meter</button><button class="btn grow"'+act('backup')+'>Backup and restore</button></div>';
+  h+='<section class="card pad stack"><p class="eyebrow">How it works</p><ol class="steps">'+
+     '<li><span>Type the units showing on your meter.</span></li>'+
+     '<li><span>Do it again tomorrow. Now the app knows how many units you use in a day.</span></li>'+
+     '<li><span>Add each top-up: what you paid and the units on the receipt.</span></li>'+
+     '<li><span>See how many days are left, the day to buy by, and what each day costs you.</span></li></ol></section>';
+  h+='<p class="foot-note">This is not a NAWEC app and it cannot read your meter. Every figure comes from the readings and receipts you type in.</p>';
+  return h;
+}
+
+function heroHtml(m,a,now){
+  var h='<section class="hero lvl-'+a.level+'" aria-label="Units left">';
+  h+='<div class="hero-main">';
+  if(a.level==='none'){
+    h+='<p class="hero-big words">No reading yet</p><p class="hero-line">Type the units showing on your meter to start.</p>';
+  }else if(a.level==='wait'){
+    h+='<p class="hero-big words">Enter one more reading</p><p class="hero-line">Read the meter again tomorrow. With two readings the app can work out your daily use and the days left.</p>';
+  }else if(a.level==='empty'){
+    h+='<p class="hero-big words">Units may be finished</p><p class="hero-line">By your usual use, the units have run out. Check the meter, then enter a reading or add a top-up.</p>';
+  }else if(a.daysLeft===null){
+    h+='<p class="hero-lab">Units left</p><p class="hero-big num" data-fit>'+Core.fmtU(a.est)+'</p><p class="hero-line">No units were used between your last readings, so there is no end day to show.</p>';
+  }else{
+    h+='<p class="hero-lab">Units will last about</p><p class="hero-big num" data-fit>'+esc(Core.fmtDur(a.daysLeft))+'</p>';
+    h+='<p class="hero-line">Runs out around <strong>'+esc(Core.fmtDay(a.runOut,now))+'</strong>, '+Core.partOfDay(a.runOut)+'.</p>';
+    h+='<p class="hero-buy">'+esc(Core.buyText(a,now))+'</p>';
+  }
+  h+='</div>';
+  if(a.est!==null){
+    h+='<div class="lcd"><span class="lcd-lab">'+(a.avg!==null?'Units now':'Last reading')+'</span><span class="lcd-num num">'+Core.fmtU(a.est)+'</span><span class="lcd-unit">kWh'+(a.avg!==null?' · estimate':'')+'</span></div>';
+  }
+  h+='</section>';
+  return h;
+}
+
+function viewMeter(m){
+  var now=N(),a=Core.analyse(m,now),h='';
+  h+='<button class="back"'+act('go-home')+'>'+ICON.back+'All meters</button>';
+  h+='<h1 class="title">'+esc(m.name)+(m.example?' <span class="tag">Example</span>':'')+'</h1>';
+  if(m.example)h+='<div class="notice"><span>Made-up readings, to show how it works.</span><button class="btn small"'+act('add-meter')+'>Add my meter</button></div>';
+  h+=heroHtml(m,a,now);
+  h+='<div class="btn-row"><button class="btn primary grow"'+act('add-reading')+'>Enter meter reading</button><button class="btn grow"'+act('add-topup')+'>Add a top-up</button></div>';
+  if(a.since!==null&&a.since>5&&a.level!=='none')h+='<p class="alert">Your last reading was '+esc(Core.fmtDur(a.since))+' ago. Enter a new one so the days left stay right.</p>';
+  if(a.gaps)h+='<p class="alert">'+(a.gaps===1?'One reading went':a.gaps+' readings went')+' up with no top-up recorded. Add the missing top-up in the Log so your daily use is right.</p>';
+  var tabs=[['now','Now'],['log','Log'],['appliances','Appliances'],['more','More']];
+  h+='<div class="tabs" role="tablist" aria-label="Sections">';
+  tabs.forEach(function(t){h+='<button role="tab" aria-selected="'+(ui.tab===t[0])+'"'+act('tab',t[0])+'>'+t[1]+'</button>';});
+  h+='</div>';
+  if(ui.tab==='log')h+=tabLog(m,a,now);
+  else if(ui.tab==='appliances')h+=tabAppliances(m,a);
+  else if(ui.tab==='more')h+=tabMore(m,a);
+  else h+=tabNow(m,a,now);
+  return h;
+}
+
+function calcAnswer(a){
+  var amount=Core.parseNum(ui.calc);
+  if(a.rate===null)return '';
+  if(isNaN(amount)||amount<=0)return '';
+  var q=Core.quote(amount,a);
+  return Core.fmtD(amount)+' buys about '+Core.fmtU(q.units)+' units'+(q.days!==null?', which is about '+Core.fmtDur(q.days)+' of power.':'.');
+}
+function tabNow(m,a,now){
+  var h='<div class="tiles">';
+  h+='<div class="tile"><p class="v num" data-fit>'+(a.avg!==null?Core.fmtU(a.avg):'–')+'</p><p class="k">Units a day</p><p class="s">'+(a.avgSource==='meter'?'From '+esc(Core.fmtDur(a.basisDays))+' of readings':a.avgSource==='appliances'?'From your appliance list':'Needs two readings')+'</p></div>';
+  h+='<div class="tile"><p class="v num" data-fit>'+(a.costPerDay!==null?Core.fmtD(a.costPerDay):'–')+'</p><p class="k">Cost a day</p><p class="s">'+(a.costPerDay!==null?'About '+Core.fmtD(a.costPerDay*30)+' in 30 days':'Needs a top-up and your daily use')+'</p></div>';
+  h+='<div class="tile"><p class="v num" data-fit>'+(a.rate!==null?Core.fmtRate(a.rate):'–')+'</p><p class="k">Price of one unit</p><p class="s">'+(a.rate!==null?'From your last '+(a.tops>=3?'3 top-ups':a.tops===2?'2 top-ups':'top-up'):'Needs a top-up')+'</p></div>';
+  h+='<div class="tile"><p class="v num" data-fit>'+Core.fmtD(a.month.spent)+'</p><p class="k">Paid this month</p><p class="s">'+(a.month.count?a.month.count+(a.month.count===1?' top-up, ':' top-ups, ')+Core.fmtU(a.month.units)+' units':'No top-up this month')+'</p></div>';
+  h+='</div>';
+  h+='<section class="card pad stack"><p class="eyebrow">How long will a top-up last?</p>';
+  if(a.rate===null)h+='<p class="muted">Add one top-up with the units from its receipt. Then you can check what any amount will buy before you pay.</p>';
+  else{
+    h+='<div class="calc"><span>D</span><input type="text" inputmode="decimal" id="calc-amount" aria-label="Amount in dalasi" placeholder="500" autocomplete="off" data-fk="calc" value="'+esc(ui.calc)+'"></div>';
+    h+='<p class="answer num" id="calc-answer" role="status">'+esc(calcAnswer(a))+'</p>';
+    h+='<p class="hint">Worked out from your own last receipts. The units on your next receipt are what counts.</p>';
+  }
+  h+='</section>';
+  h+='<button class="btn block"'+act('share-status')+(a.level==='none'?' disabled':'')+'>Send the status on WhatsApp</button>';
+  return h;
+}
+
+function tabLog(m,a,now){
+  var ev=Core.sortEvents(m.events).reverse(),h='';
+  if(!ev.length)return '<section class="card pad stack"><h2 class="h2">Nothing in the log yet</h2><p class="muted">Each reading and each top-up you add is listed here, newest first.</p></section>';
+  h+='<section class="card"><ul class="list">';
+  ev.forEach(function(e){
+    h+='<li><span class="mark '+e.kind+'" aria-hidden="true"></span><div class="info">';
+    if(e.kind==='topup'){
+      var tn=a.topNotes[e.id];
+      h+='<span class="nm">Top-up</span><span class="sub num">'+esc(Core.fmtWhen(e.t,now))+'</span>';
+      var note=Core.fmtRate(tn.rate)+' for one unit';
+      if(tn.prevRate!==null){
+        var ch=(tn.rate-tn.prevRate)/tn.prevRate*100;
+        note+=Math.abs(ch)<3?', about the same as your top-up before':', '+Math.round(Math.abs(ch))+'% '+(ch>0?'more':'less')+' than your top-up before';
+      }
+      h+='<span class="note num">'+esc(note)+'</span>';
+      if(typeof e.after==='number')h+='<span class="sub num">Meter showed '+Core.fmtU(e.after)+' after loading</span>';
+    }else{
+      h+='<span class="nm">Meter reading</span><span class="sub num">'+esc(Core.fmtWhen(e.t,now))+'</span>';
+    }
+    var iv=a.notes[e.id];
+    if(iv){
+      if(iv.gap)h+='<span class="note flag num">Units went up by '+Core.fmtU(iv.rise)+' with no top-up recorded before this.</span>';
+      else h+='<span class="note num">Used '+Core.fmtU(iv.used)+' units in '+esc(Core.fmtDur(iv.days))+(iv.days>=0.25?' ('+Core.fmtU(iv.perDay)+' a day)':'')+'</span>';
+    }
+    h+='</div>';
+    h+=e.kind==='topup'?'<span class="amt num">'+Core.fmtD(e.amount)+'<small>'+Core.fmtU(e.units)+' units</small></span>':'<span class="amt num">'+Core.fmtU(e.units)+'<small>units</small></span>';
+    h+='<button class="icon-btn" aria-label="Delete this '+(e.kind==='topup'?'top-up':'reading')+'"'+act('del-event',e.id)+'>'+ICON.bin+'</button></li>';
+  });
+  h+='</ul></section>';
+  return h;
+}
+
+function tabAppliances(m,a){
+  var total=a.appliances,h='';
+  h+='<p class="muted">List what you plug in to see what eats your units. One unit is 1,000 watts running for one hour.</p>';
+  if(m.appliances.length){
+    var list=m.appliances.slice().sort(function(x,y){return Core.applianceUnits(y)-Core.applianceUnits(x);});
+    var top=Core.applianceUnits(list[0])||1;
+    h+='<section class="card"><ul class="list">';
+    list.forEach(function(x){
+      var u=Core.applianceUnits(x);
+      h+='<li><button class="rowbtn"'+act('edit-appliance',x.id)+' aria-label="Edit '+esc(x.name)+'"><span class="info"><span class="nm">'+esc(x.name)+(x.count>1?' × '+x.count:'')+'</span><span class="sub num">'+x.watts+' watts, '+x.hours+(x.hours===1?' hour':' hours')+' a day</span><span class="usebar" aria-hidden="true"><span style="width:'+Math.max(2,Math.round(100*u/top))+'%"></span></span></span>';
+      h+='<span class="amt num">'+u.toFixed(2)+'<small>units a day'+(a.rate!==null?' · '+Core.fmtD(u*a.rate):'')+'</small></span></button></li>';
+    });
+    h+='</ul><div class="cardfoot stack"><p><strong class="num">Your list uses '+Core.fmtU(total)+' units a day'+(a.rate!==null?', about '+Core.fmtD(total*a.rate):'')+'.</strong></p>';
+    if(a.avgSource==='meter'){
+      var diff=a.avg-total;
+      if(diff>0.5)h+='<p class="muted num">Your meter shows about '+Core.fmtU(a.avg)+' a day. So about '+Core.fmtU(diff)+' units a day go to things not on this list, or to longer hours than you entered.</p>';
+      else if(diff<-0.5)h+='<p class="muted num">Your meter shows about '+Core.fmtU(a.avg)+' a day, which is less than this list. Some hours are probably lower than you entered.</p>';
+      else h+='<p class="muted num">That matches what your meter shows: about '+Core.fmtU(a.avg)+' a day.</p>';
+    }
+    h+='</div></section>';
+  }
+  h+='<button class="btn primary block"'+act('add-appliance')+(m.appliances.length>=60?' disabled':'')+'>Add an appliance</button>';
+  h+='<p class="hint">The watts offered for each appliance are typical figures. The label on your own appliance is more exact, so change the number if yours is different.</p>';
+  return h;
+}
+
+function tabMore(m,a){
+  var h='';
+  h+='<section class="card"><div class="cardhead stack"><p class="eyebrow">Sharing one meter</p><p class="muted">For a compound where several rooms or families pay for the same meter. Give each one a number of shares.</p></div>';
+  if(m.sharers.length){
+    var S=0;m.sharers.forEach(function(s){S+=s.shares;});
+    h+='<ul class="list">';
+    m.sharers.forEach(function(s){
+      h+='<li><button class="rowbtn"'+act('edit-sharer',s.id)+' aria-label="Edit '+esc(s.name)+'"><span class="info"><span class="nm">'+esc(s.name)+'</span><span class="sub num">'+s.shares+(s.shares===1?' share':' shares')+' of '+S+'</span></span><span class="amt num">'+Math.round(100*s.shares/S)+'%</span></button></li>';
+    });
+    h+='</ul>';
+  }
+  h+='<div class="cardfoot btn-row"><button class="btn grow"'+act('add-sharer')+(m.sharers.length>=50?' disabled':'')+'>Add a person or family</button><button class="btn primary grow"'+act('split')+(m.sharers.length<2?' disabled':'')+'>Split a top-up</button></div></section>';
+  h+='<section class="card pad stack"><p class="eyebrow">This meter</p><div class="rows">'+
+     '<div><span>Name</span><span>'+esc(m.name)+'</span></div>'+
+     '<div><span>Warn me when units will last</span><span class="num">'+m.lowDays+(m.lowDays===1?' day':' days')+' or less</span></div>'+
+     '<div><span>Readings and top-ups saved</span><span class="num">'+a.readings+' and '+a.tops+'</span></div></div>'+
+     '<button class="btn block"'+act('edit-meter')+'>Change name or warning</button></section>';
+  h+='<button class="btn danger block"'+act('delete-meter')+'>Delete this meter</button>';
+  return h;
+}
+
+/* Big figures never break across lines: shrink the type until the whole figure fits its box. */
+function fitAll(){
+  var els=view.querySelectorAll('[data-fit]');
+  for(var i=0;i<els.length;i++){
+    var el=els[i],guard=0;
+    el.style.fontSize='';
+    var size=parseFloat(window.getComputedStyle(el).fontSize)||30;
+    while(el.scrollWidth>el.clientWidth+0.5&&size>12&&guard++<40){size-=2;el.style.fontSize=size+'px';}
+  }
+}
+function render(){
+  var a=document.activeElement,fk=a&&a.getAttribute?a.getAttribute('data-fk'):null,sel=null,h;
+  if(fk==='calc'){try{sel=[a.selectionStart,a.selectionEnd];}catch(e){}}
+  if(ui.view==='meter'){
+    var m=M(ui.mid);
+    if(!m){ui.view='home';ui.mid=null;h=viewHome();}
+    else h=viewMeter(m);
+  }else h=viewHome();
+  view.innerHTML=h;
+  if(fk){
+    var els=view.querySelectorAll('[data-fk]');
+    for(var i=0;i<els.length;i++){
+      if(els[i].getAttribute('data-fk')===fk&&!els[i].disabled){
+        try{els[i].focus({preventScroll:true});if(sel&&els[i].setSelectionRange)els[i].setSelectionRange(sel[0],sel[1]);}catch(e){}
+        break;
+      }
+    }
+  }
+  fitAll();
+}
+function go(v,mid){
+  ui.view=v;ui.mid=mid||null;
+  if(v==='meter'){ui.tab='now';ui.calc='';}
+  render();
+  try{window.scrollTo(0,0);}catch(e){}
+}
+var toastTimer=null;
+function toast(msg){
+  toastEl.textContent=msg;toastEl.className='on';
+  if(toastTimer)clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){toastEl.className='';},2600);
+}
+
+/* ---- sheets (dialogs) ---- */
+var sheetYes=null;
+function openSheet(html){
+  sheet.innerHTML='<div class="sheet">'+html+'</div>';
+  if(!sheet.open){
+    if(typeof sheet.showModal==='function'){try{sheet.showModal();}catch(e){sheet.setAttribute('open','');}}
+    else sheet.setAttribute('open','');
+  }
+  var f=sheet.querySelector('[data-autofocus]');
+  if(f){try{f.focus();}catch(e){}}
+}
+function closeSheet(){
+  sheetYes=null;
+  if(sheet.open){if(typeof sheet.close==='function')sheet.close();else sheet.removeAttribute('open');}
+  sheet.innerHTML='';
+}
+function confirmSheet(title,body,yesLabel,danger,onYes){
+  sheetYes=onYes;
+  openSheet('<h2 id="sheet-title">'+esc(title)+'</h2><p>'+esc(body)+'</p><div class="btn-row"><button class="btn grow '+(danger?'danger':'primary')+'" data-act="sheet-yes" data-autofocus>'+esc(yesLabel)+'</button><button class="btn grow" data-act="sheet-close">Cancel</button></div>');
+}
+function shareSheet(title,text){
+  openSheet('<h2 id="sheet-title">'+esc(title)+'</h2><div class="field"><label for="share-text">Message</label><textarea class="msg" id="share-text">'+esc(text)+'</textarea><p class="hint">You can change the words before you send.</p></div>'+
+    '<div class="btn-row"><a class="btn primary grow" id="share-wa" target="_blank" rel="noopener" href="https://wa.me/?text='+encodeURIComponent(text)+'">Send on WhatsApp</a><button class="btn grow" data-act="copy" data-target="share-text">Copy message</button></div>'+
+    '<p class="hint" id="copy-note" role="status"></p><button class="btn quiet" data-act="sheet-close">Close</button>');
+}
+function copyFrom(id,btn){
+  var ta=document.getElementById(id),note=document.getElementById('copy-note');
+  if(!ta)return;
+  function ok(){if(btn){var old=btn.textContent;btn.textContent='Copied';setTimeout(function(){btn.textContent=old;},1800);}if(note)note.textContent='';}
+  function manual(){
+    var done=false;
+    try{ta.focus();ta.select();done=document.execCommand&&document.execCommand('copy');}catch(e){}
+    if(done)ok();else if(note)note.textContent='Copying is blocked here. Press and hold the text, choose Select all, then Copy.';
+  }
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(ta.value).then(ok,manual);
+    else manual();
+  }catch(e){manual();}
+}
+function whenField(id){
+  return '<div class="field"><label for="'+id+'">Date and time</label><input type="datetime-local" id="'+id+'" value="'+N()+'" max="'+N()+'"><p class="hint">Change this only if you are adding something from an earlier day.</p></div>';
+}
+function readingSheet(){
+  openSheet('<h2 id="sheet-title">Enter meter reading</h2><form class="stack" data-form="save-reading" novalidate>'+
+    '<div class="field"><label for="r-units">Units showing on the meter</label><input type="text" inputmode="decimal" id="r-units" autocomplete="off" placeholder="24.6" data-autofocus><p class="hint">The number on the meter screen, in kWh. If you loaded a token just now, use Add a top-up instead.</p></div>'+
+    whenField('r-when')+
+    '<p class="err" id="r-err" role="alert"></p><div class="btn-row"><button class="btn primary grow" type="submit">Save reading</button><button class="btn grow" type="button" data-act="sheet-close">Cancel</button></div></form>');
+}
+function topupSheet(){
+  openSheet('<h2 id="sheet-title">Add a top-up</h2><form class="stack" data-form="save-topup" novalidate>'+
+    '<div class="two"><div class="field"><label for="t-amount">You paid, in dalasi</label><input type="text" inputmode="numeric" id="t-amount" autocomplete="off" placeholder="500" data-autofocus></div>'+
+    '<div class="field"><label for="t-units">Units on the receipt</label><input type="text" inputmode="decimal" id="t-units" autocomplete="off" placeholder="35.6"></div></div>'+
+    '<div class="field"><label for="t-after">Units showing on the meter after loading (optional)</label><input type="text" inputmode="decimal" id="t-after" autocomplete="off" placeholder="43.9"><p class="hint">Fill this in if you can see the meter. It makes the days left more exact.</p></div>'+
+    whenField('t-when')+
+    '<p class="err" id="t-err" role="alert"></p><div class="btn-row"><button class="btn primary grow" type="submit">Save top-up</button><button class="btn grow" type="button" data-act="sheet-close">Cancel</button></div></form>');
+}
+function applianceSheet(m,x){
+  var isNew=!x,h='<h2 id="sheet-title">'+(isNew?'Add an appliance':'Edit appliance')+'</h2><form class="stack" data-form="save-appliance" data-id="'+(isNew?'':esc(x.id))+'" novalidate>';
+  if(isNew){
+    h+='<div class="field"><label for="a-preset">Pick a common one</label><select id="a-preset"><option value="">Something else</option>';
+    Core.PRESETS.forEach(function(p,i){h+='<option value="'+i+'">'+esc(p[0])+' (about '+p[1]+' watts)</option>';});
+    h+='</select></div>';
+  }
+  h+='<div class="field"><label for="a-name">Name</label><input type="text" id="a-name" maxlength="40" autocomplete="off" value="'+(isNew?'':esc(x.name))+'"></div>';
+  h+='<div class="two"><div class="field"><label for="a-watts">Watts</label><input type="text" inputmode="decimal" id="a-watts" autocomplete="off" value="'+(isNew?'':x.watts)+'"></div>';
+  h+='<div class="field"><label for="a-hours">Hours a day</label><input type="text" inputmode="decimal" id="a-hours" autocomplete="off" value="'+(isNew?'':x.hours)+'"></div></div>';
+  h+='<div class="field"><label for="a-count">How many</label><input type="text" inputmode="numeric" id="a-count" autocomplete="off" value="'+(isNew?1:x.count)+'"><p class="hint">A fridge or freezer motor runs only part of the time, often 8 to 12 hours in a day.</p></div>';
+  h+='<p class="err" id="a-err" role="alert"></p><div class="btn-row"><button class="btn primary grow" type="submit">'+(isNew?'Add appliance':'Save')+'</button><button class="btn grow" type="button" data-act="sheet-close">Cancel</button></div>';
+  if(!isNew)h+='<button class="btn danger" type="button" data-act="remove-appliance" data-id="'+esc(x.id)+'">Remove from the list</button>';
+  h+='</form>';
+  openSheet(h);
+}
+function sharerSheet(m,s){
+  var isNew=!s,h='<h2 id="sheet-title">'+(isNew?'Add a person or family':'Edit')+'</h2><form class="stack" data-form="save-sharer" data-id="'+(isNew?'':esc(s.id))+'" novalidate>';
+  h+='<div class="field"><label for="s-name">Name</label><input type="text" id="s-name" maxlength="40" autocomplete="off" value="'+(isNew?'':esc(s.name))+'" data-autofocus></div>';
+  h+='<div class="field"><label for="s-shares">Shares</label><input type="text" inputmode="numeric" id="s-shares" autocomplete="off" value="'+(isNew?1:s.shares)+'"><p class="hint">Give 1 share each to split evenly. Give 2 shares to a house that uses about double.</p></div>';
+  h+='<p class="err" id="s-err" role="alert"></p><div class="btn-row"><button class="btn primary grow" type="submit">'+(isNew?'Add':'Save')+'</button><button class="btn grow" type="button" data-act="sheet-close">Cancel</button></div>';
+  if(!isNew)h+='<button class="btn danger" type="button" data-act="remove-sharer" data-id="'+esc(s.id)+'">Remove</button>';
+  h+='</form>';
+  openSheet(h);
+}
+function meterSheet(m){
+  var isNew=!m,h='<h2 id="sheet-title">'+(isNew?'Add a meter':'Change name or warning')+'</h2><form class="stack" data-form="save-meter" data-id="'+(isNew?'':esc(m.id))+'" novalidate>';
+  h+='<div class="field"><label for="m-name">Name of the meter</label><input type="text" id="m-name" maxlength="40" autocomplete="off" value="'+(isNew?'':esc(m.name))+'" placeholder="Home" data-autofocus></div>';
+  if(isNew)h+='<div class="field"><label for="m-units">Units showing on the meter now (optional)</label><input type="text" inputmode="decimal" id="m-units" autocomplete="off" placeholder="24.6"></div>';
+  h+='<div class="field"><label for="m-low">Warn me when units will last this many days or less</label><input type="text" inputmode="numeric" id="m-low" autocomplete="off" value="'+(isNew?3:m.lowDays)+'"></div>';
+  h+='<p class="err" id="m-err" role="alert"></p><div class="btn-row"><button class="btn primary grow" type="submit">'+(isNew?'Add meter':'Save')+'</button><button class="btn grow" type="button" data-act="sheet-close">Cancel</button></div></form>';
+  openSheet(h);
+}
+function lastTopupAmount(m){
+  var ev=Core.sortEvents(m.events);
+  for(var i=ev.length-1;i>=0;i--)if(ev[i].kind==='topup')return ev[i].amount;
+  return 0;
+}
+function splitRows(m,amount){
+  if(isNaN(amount)||amount<1||Math.floor(amount)!==amount||amount>10000000)return '';
+  var parts=Core.split(amount,m.sharers),h='<div class="rows">';
+  parts.forEach(function(p){h+='<div><span>'+esc(p.name)+' ('+p.shares+(p.shares===1?' share':' shares')+')</span><span class="num">'+Core.fmtD(p.pays)+'</span></div>';});
+  return h+'</div>';
+}
+function splitSheet(m){
+  var amt=lastTopupAmount(m);
+  openSheet('<h2 id="sheet-title">Split a top-up</h2><div class="field"><label for="split-amount">Amount to share, in dalasi</label><input type="text" inputmode="numeric" id="split-amount" autocomplete="off" value="'+(amt||'')+'" placeholder="500" data-autofocus></div>'+
+    '<div id="split-out">'+splitRows(m,amt)+'</div><p class="err" id="split-err" role="alert"></p>'+
+    '<div class="btn-row"><button class="btn primary grow" data-act="share-split">Send the split on WhatsApp</button><button class="btn grow" data-act="sheet-close">Close</button></div>');
+}
+function backupText(){
+  return JSON.stringify({app:'cashpower-watch',v:1,exported:N().slice(0,10),meters:live()});
+}
+function backupSheet(){
+  var count=live().length;
+  var h='<h2 id="sheet-title">Backup and restore</h2>';
+  h+='<p>A backup is a copy of everything here: '+count+' '+(count===1?'meter':'meters')+' with all readings and top-ups. Keep one somewhere safe, for example in a WhatsApp message to yourself.</p>';
+  h+='<div class="field"><label for="backup-text">Your backup</label><textarea class="msg code" id="backup-text" readonly>'+esc(backupText())+'</textarea></div>';
+  h+='<div class="btn-row"><button class="btn primary grow" data-act="copy" data-target="backup-text">Copy backup</button>'+(downloadsCap?'<button class="btn grow" data-act="save-backup-file">Save as a file</button>':'')+'</div><p class="hint" id="copy-note" role="status"></p><hr>';
+  h+='<div class="field"><label for="restore-text">Restore: paste a backup here</label><textarea class="msg code" id="restore-text" placeholder="Paste the backup text"></textarea></div>';
+  h+='<div class="field"><label for="restore-file">Or choose a backup file</label><input type="file" id="restore-file" accept=".json,.txt,application/json,text/plain"></div>';
+  h+='<p class="err" id="restore-err" role="alert"></p><div class="btn-row"><button class="btn grow" data-act="restore">Restore this backup</button><button class="btn quiet grow" data-act="sheet-close">Close</button></div>';
+  openSheet(h);
+}
+function readBackup(text){
+  var data,bad={error:'That is not a backup from this app. Copy the whole backup text and paste it again.'};
+  try{data=JSON.parse(String(text||'').trim());}catch(e){return bad;}
+  var list=data&&Array.isArray(data.meters)?data.meters:null;
+  if(!list)return bad;
+  var out=[],seen={};
+  list.forEach(function(x){var m=Core.normalizeMeter(x);if(m&&!m.deleted&&!seen[m.id]){seen[m.id]=true;out.push(m);}});
+  if(!out.length)return {error:'This backup has no meters in it.'};
+  return {meters:out};
+}
+function applyBackup(meters){
+  meters.forEach(function(m){
+    var i=indexOfMeter(m.id);
+    if(i>=0)m.updatedAt=state.meters[i].updatedAt||0;
+    stamp(m);
+    if(i>=0)state.meters[i]=m;else state.meters.push(m);
+  });
+  if(state.pristine){state.meters=state.meters.filter(function(m){return !(m.example&&!m.updatedAt);});}
+  state.pristine=false;saveLocal();
+  meters.forEach(function(m){cloudDirty(m.id);});
+}
+
+/* =====================================================================
+   Actions
+   ===================================================================== */
+/* A date for the middle of a sentence: "today, 7:10 am" but "Tue 3 Nov, 7:10 am". */
+function midWhen(t){var w=Core.fmtWhen(t,N());return /^(Today|Yesterday|Tomorrow)/.test(w)?w.charAt(0).toLowerCase()+w.slice(1):w;}
+function cur(){var m=ui.view==='meter'?M(ui.mid):null;if(!m){closeSheet();go('home');}return m;}
+function addEvent(m,e){
+  m.events.push(e);m.events=Core.sortEvents(m.events);
+  if(m.events.length>Core.MAX_EVENTS)m.events=m.events.slice(m.events.length-Core.MAX_EVENTS);
+}
+var actions={
+  'go-home':function(){go('home');},
+  'open-meter':function(el){if(M(el.getAttribute('data-id')))go('meter',el.getAttribute('data-id'));},
+  'tab':function(el){ui.tab=el.getAttribute('data-id');render();},
+  'add-meter':function(){meterSheet(null);},
+  'edit-meter':function(){var m=cur();if(m)meterSheet(m);},
+  'add-reading':function(){if(cur())readingSheet();},
+  'add-topup':function(){if(cur())topupSheet();},
+  'del-event':function(el){
+    var m=cur();if(!m)return;
+    var id=el.getAttribute('data-id'),e=null;
+    m.events.forEach(function(x){if(x.id===id)e=x;});
+    if(!e)return;
+    var what=e.kind==='topup'?'top-up of '+Core.fmtD(e.amount):'reading of '+Core.fmtU(e.units)+' units';
+    confirmSheet('Delete this '+(e.kind==='topup'?'top-up':'reading')+'?','The '+what+' from '+midWhen(e.t)+' is removed and the days left are worked out again.','Delete',true,function(){
+      var m2=cur();if(!m2)return;
+      m2.events=m2.events.filter(function(x){return x.id!==id;});
+      closeSheet();commit(m2);toast('Deleted');
+    });
+  },
+  'share-status':function(){var m=cur();if(!m)return;var now=N();shareSheet('Send the status',Core.msgStatus(m,Core.analyse(m,now),now));},
+  'add-appliance':function(){var m=cur();if(m&&m.appliances.length<60)applianceSheet(m,null);},
+  'edit-appliance':function(el){var m=cur();if(!m)return;var id=el.getAttribute('data-id');m.appliances.forEach(function(x){if(x.id===id)applianceSheet(m,x);});},
+  'remove-appliance':function(el){var m=cur();if(!m)return;var id=el.getAttribute('data-id');m.appliances=m.appliances.filter(function(x){return x.id!==id;});closeSheet();commit(m);},
+  'add-sharer':function(){var m=cur();if(m&&m.sharers.length<50)sharerSheet(m,null);},
+  'edit-sharer':function(el){var m=cur();if(!m)return;var id=el.getAttribute('data-id');m.sharers.forEach(function(s){if(s.id===id)sharerSheet(m,s);});},
+  'remove-sharer':function(el){var m=cur();if(!m)return;var id=el.getAttribute('data-id');m.sharers=m.sharers.filter(function(s){return s.id!==id;});closeSheet();commit(m);},
+  'split':function(){var m=cur();if(m&&m.sharers.length>=2)splitSheet(m);},
+  'share-split':function(){
+    var m=cur();if(!m)return;
+    var amount=Core.parseNum(document.getElementById('split-amount').value),err=document.getElementById('split-err');
+    if(isNaN(amount)||amount<1||Math.floor(amount)!==amount||amount>10000000){err.textContent='Enter the amount in whole dalasi, for example 500.';return;}
+    shareSheet('Send the split',Core.msgSplit(m,amount,Core.split(amount,m.sharers)));
+  },
+  'delete-meter':function(){
+    var m=cur();if(!m)return;
+    confirmSheet('Delete '+m.name+'?','The meter and all its readings and top-ups are removed. This cannot be undone.','Delete meter',true,function(){
+      var i=indexOfMeter(m.id);if(i<0){closeSheet();go('home');return;}
+      var tomb={id:m.id,deleted:true,updatedAt:state.meters[i].updatedAt||0};
+      stamp(tomb);state.meters[i]=tomb;state.pristine=false;saveLocal();cloudDirty(tomb.id);
+      closeSheet();go('home');toast('Meter deleted');
+    });
+  },
+  'copy':function(el){copyFrom(el.getAttribute('data-target'),el);},
+  'backup':function(){backupSheet();},
+  'save-backup-file':function(){
+    if(!downloadsCap)return;
+    var note=document.getElementById('copy-note');
+    downloadsCap.save({filename:'cashpower-watch-backup-'+N().slice(0,10)+'.json',data:backupText()}).then(function(){if(note)note.textContent='Backup file saved.';},function(e){
+      if(note)note.textContent=(e&&e.code==='declined')?'The file was not saved.':'The file could not be saved here. Use Copy backup instead.';
+    });
+  },
+  'restore':function(){
+    var ta=document.getElementById('restore-text'),err=document.getElementById('restore-err');
+    var res=readBackup(ta?ta.value:'');
+    if(res.error){if(err)err.textContent=res.error;return;}
+    var replace=0;res.meters.forEach(function(m){if(M(m.id))replace++;});
+    var add=res.meters.length-replace,parts=[];
+    if(add)parts.push(add+' '+(add===1?'meter is':'meters are')+' added.');
+    if(replace)parts.push(replace+' '+(replace===1?'meter':'meters')+' already here '+(replace===1?'is':'are')+' replaced by the backup copy.');
+    confirmSheet('Restore this backup?',parts.join(' ')+' Other meters are not touched.','Restore',false,function(){
+      applyBackup(res.meters);closeSheet();go('home');toast(res.meters.length+' '+(res.meters.length===1?'meter':'meters')+' restored');
+    });
+  },
+  'sheet-yes':function(){var f=sheetYes;if(f)f();},
+  'sheet-close':function(){closeSheet();}
+};
+
+function val(id){var el=document.getElementById(id);return el?el.value:'';}
+var forms={
+  'save-reading':function(){
+    var m=cur();if(!m)return;
+    var units=Core.parseNum(val('r-units')),t=val('r-when'),e=Core.validateReading(units,t,N());
+    if(e){document.getElementById('r-err').textContent=e;return;}
+    /* A second reading for the same minute is a correction: it takes the place of the first. */
+    var replaced=false;
+    m.events=m.events.filter(function(x){if(x.kind==='reading'&&x.t===t){replaced=true;return false;}return true;});
+    addEvent(m,{id:Core.newId('e',rnd,7),kind:'reading',t:t,units:Core.r2(units)});
+    closeSheet();commit(m);toast(replaced?'Reading corrected':'Reading saved');
+  },
+  'save-topup':function(){
+    var m=cur();if(!m)return;
+    var amount=Core.parseNum(val('t-amount')),units=Core.parseNum(val('t-units')),afterRaw=val('t-after').trim(),after=afterRaw===''?null:Core.parseNum(afterRaw),t=val('t-when');
+    var e=Core.validateTopup(amount,units,after,t,N());
+    if(e){document.getElementById('t-err').textContent=e;return;}
+    var ev={id:Core.newId('e',rnd,7),kind:'topup',t:t,amount:amount,units:Core.r2(units)};
+    if(after!==null)ev.after=Core.r2(after);
+    addEvent(m,ev);
+    closeSheet();commit(m);toast('Top-up saved');
+  },
+  'save-appliance':function(form){
+    var m=cur();if(!m)return;
+    var id=form.getAttribute('data-id'),name=Core.clean(val('a-name'),40),watts=Core.parseNum(val('a-watts')),hours=Core.parseNum(val('a-hours')),count=Core.parseNum(val('a-count'));
+    var e=Core.validateAppliance(name,watts,hours,count);
+    if(e){document.getElementById('a-err').textContent=e;return;}
+    var rec={id:id||Core.newId('a',rnd,7),name:name,watts:Core.r2(watts),hours:Core.r2(hours),count:count};
+    if(id){m.appliances=m.appliances.map(function(x){return x.id===id?rec:x;});}
+    else{if(m.appliances.length>=60){closeSheet();return;}m.appliances.push(rec);}
+    closeSheet();commit(m);
+  },
+  'save-sharer':function(form){
+    var m=cur();if(!m)return;
+    var id=form.getAttribute('data-id'),name=Core.clean(val('s-name'),40),shares=Core.parseNum(val('s-shares')),err=document.getElementById('s-err');
+    if(!name){err.textContent='Enter a name.';return;}
+    if(isNaN(shares)||shares<1||shares>20||Math.floor(shares)!==shares){err.textContent='Shares must be a whole number from 1 to 20.';return;}
+    var rec={id:id||Core.newId('s',rnd,7),name:name,shares:shares};
+    if(id){m.sharers=m.sharers.map(function(s){return s.id===id?rec:s;});}
+    else{if(m.sharers.length>=50){closeSheet();return;}m.sharers.push(rec);}
+    closeSheet();commit(m);
+  },
+  'save-meter':function(form){
+    var id=form.getAttribute('data-id'),name=Core.clean(val('m-name'),40),low=Core.parseNum(val('m-low')),err=document.getElementById('m-err');
+    if(!name){err.textContent='Give the meter a name, for example Home.';return;}
+    if(isNaN(low)||low<1||low>14||Math.floor(low)!==low){err.textContent='The warning must be a whole number of days from 1 to 14.';return;}
+    if(id){
+      var m=M(id);if(!m){closeSheet();render();return;}
+      m.name=name;m.lowDays=low;closeSheet();commit(m);return;
+    }
+    var unitsRaw=val('m-units').trim(),events=[];
+    if(unitsRaw!==''){
+      var units=Core.parseNum(unitsRaw),e=Core.validateReading(units,N(),N());
+      if(e){err.textContent=e;return;}
+      events.push({id:Core.newId('e',rnd,7),kind:'reading',t:N(),units:Core.r2(units)});
+    }
+    var nm=Core.normalizeMeter({id:Core.newId('m',rnd,10),name:name,lowDays:low,events:events,appliances:[],sharers:[],createdAt:Date.now(),updatedAt:0});
+    if(!nm){err.textContent='Check the details and try again.';return;}
+    state.meters.push(nm);closeSheet();commit(nm,true);
+    go('meter',nm.id);toast('Meter added');
+  }
+};
+
+document.addEventListener('click',function(ev){
+  if(ev.target===sheet){closeSheet();return;}
+  var el=ev.target.closest?ev.target.closest('[data-act]'):null;
+  if(!el||el.disabled)return;
+  var f=actions[el.getAttribute('data-act')];
+  if(f){ev.preventDefault();f(el,ev);}
+});
+document.addEventListener('submit',function(ev){
+  ev.preventDefault();
+  var form=ev.target,f=form&&form.getAttribute?forms[form.getAttribute('data-form')]:null;
+  if(f)f(form);
+});
+document.addEventListener('input',function(ev){
+  var t=ev.target;if(!t||!t.id)return;
+  if(t.id==='share-text'){var a=document.getElementById('share-wa');if(a)a.setAttribute('href','https://wa.me/?text='+encodeURIComponent(t.value));}
+  else if(t.id==='calc-amount'){
+    ui.calc=t.value;
+    var m=ui.view==='meter'?M(ui.mid):null,out=document.getElementById('calc-answer');
+    if(m&&out)out.textContent=calcAnswer(Core.analyse(m,N()));
+  }else if(t.id==='split-amount'){
+    var m2=ui.view==='meter'?M(ui.mid):null,box=document.getElementById('split-out'),err=document.getElementById('split-err');
+    if(m2&&box){box.innerHTML=splitRows(m2,Core.parseNum(t.value));if(err)err.textContent='';}
+  }
+});
+document.addEventListener('change',function(ev){
+  var t=ev.target;if(!t)return;
+  if(t.id==='a-preset'&&t.value!==''){
+    var p=Core.PRESETS[+t.value];
+    if(p){document.getElementById('a-name').value=p[0];document.getElementById('a-watts').value=p[1];document.getElementById('a-hours').value=p[2];}
+  }
+  if(t.id==='restore-file'&&t.files&&t.files[0]){
+    var reader=new FileReader(),err=document.getElementById('restore-err');
+    reader.onload=function(){var ta=document.getElementById('restore-text');if(ta){ta.value=String(reader.result||'');if(err)err.textContent='';}};
+    reader.onerror=function(){if(err)err.textContent='That file could not be read. Paste the backup text instead.';};
+    reader.readAsText(t.files[0]);
+  }
+});
+sheet.addEventListener('close',function(){if(!sheet.open){sheetYes=null;sheet.innerHTML='';}});
+sheet.addEventListener('cancel',function(){sheetYes=null;});
+var fitTimer=null;
+window.addEventListener('resize',function(){if(fitTimer)clearTimeout(fitTimer);fitTimer=setTimeout(fitAll,120);});
+if(document.fonts&&document.fonts.ready&&typeof document.fonts.ready.then==='function'){document.fonts.ready.then(fitAll,function(){});}
+/* The estimate moves with the clock: refresh when the page is looked at again, and once a minute while it is open. */
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&!sheet.open)render();});
+setInterval(function(){if(!document.hidden&&!sheet.open&&document.activeElement&&document.activeElement.id!=='calc-amount')render();},60000);
+
+/* ---- boot ---- */
+function start(data){
+  loadLocal();
+  var saved=data&&data.ui,l=live();
+  if(saved&&typeof saved==='object'&&saved.view==='meter'&&typeof saved.mid==='string'&&M(saved.mid)){
+    ui.view='meter';ui.mid=saved.mid;
+    ui.tab=['now','log','appliances','more'].indexOf(saved.tab)>=0?saved.tab:'now';
+  }else if(saved&&typeof saved==='object'&&saved.view==='home'){
+    ui.view='home';
+  }else if(l.length===1){
+    ui.view='meter';ui.mid=l[0].id;ui.tab='now';
+  }
+  render();
+  startCloud(0);
+}
+var hot=window.claude&&window.claude.hot;
+if(hot&&typeof hot.snapshot==='function'){try{hot.snapshot(function(){return {ui:{view:ui.view,mid:ui.mid,tab:ui.tab}};});}catch(e){}}
+if(hot&&typeof hot.ready==='function'){try{hot.ready(start);}catch(e){start({});}}
+else start((hot&&hot.data)||{});
+})();
+</script>
+</body>
+</html>

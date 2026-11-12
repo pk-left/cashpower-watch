@@ -27,6 +27,8 @@
   --amber:#f0a81c;
   --on-amber:#2b1d00;
   --slate:#2a3a32;
+  --bar:#13866a;
+  --grid:#e4e8e1;
   --shadow:0 1px 2px rgba(22,32,27,.06),0 6px 20px rgba(22,32,27,.06);
   --display:"Barlow Condensed","Roboto Condensed","sans-serif-condensed","Arial Narrow",system-ui,sans-serif;
   --body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",sans-serif;
@@ -52,6 +54,8 @@
     --amber:#f0a81c;
     --on-amber:#2b1d00;
     --slate:#24332b;
+    --bar:#23a07c;
+    --grid:#26332c;
     --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.25);
     color-scheme:dark;
   }
@@ -75,6 +79,8 @@
   --amber:#f0a81c;
   --on-amber:#2b1d00;
   --slate:#24332b;
+  --bar:#23a07c;
+  --grid:#26332c;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.25);
   color-scheme:dark;
 }
@@ -222,6 +228,41 @@ dialog#sheet::backdrop{background:rgba(8,14,11,.6)}
 .sheet textarea.code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;min-height:110px}
 hr{border:0;border-top:1px solid var(--line);margin:2px 0;width:100%}
 .foot-note{font-size:13px;color:var(--muted)}
+.hero-sub{font-size:15px;opacity:.85}
+.hero-low{align-self:flex-start;margin-top:2px;padding:4px 11px;border-radius:999px;font-weight:700;font-size:15px;background:rgba(255,255,255,.18)}
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:12px;background:var(--paper);border:1px solid var(--line)}
+.seg button{min-height:38px;min-width:64px;border:0;border-radius:9px;background:transparent;color:var(--muted);font-weight:700;padding:4px 12px}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.chart-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.chart{display:block;width:100%;height:auto;overflow:visible;touch-action:manipulation}
+.chart .gl{stroke:var(--grid);stroke-width:1}
+.chart .base{stroke:var(--line);stroke-width:1.5}
+.chart .ax{fill:var(--muted);font-size:10.5px;font-family:var(--body)}
+.chart .ax.sel{fill:var(--ink);font-weight:700}
+.chart .b{fill:var(--bar)}
+.chart .b.part{fill:url(#hatch)}
+.chart .b.part-edge{fill:none;stroke:var(--bar);stroke-width:1.5}
+.chart .avg{stroke:var(--ink);stroke-width:1.5;stroke-dasharray:4 4;opacity:.55}
+.chart .avg-t{fill:var(--muted);font-size:10.5px;font-weight:700}
+.chart .val{fill:var(--ink);font-size:12px;font-weight:700;font-family:var(--body)}
+.chart .hit{fill:transparent;cursor:pointer}
+.chart .hit:focus{outline:none}
+.chart .hit:focus-visible+.ring,.chart .ring{fill:none}
+.chart .selbg{fill:var(--ink);opacity:.06}
+.detail{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px;padding:10px 12px;border-radius:12px;background:var(--paper)}
+.detail .d1{font-weight:700}
+.detail .d2{font-family:var(--display);font-weight:800;font-size:24px;line-height:1}
+.detail .d3{width:100%;font-size:14px;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{display:inline-block;width:14px;height:10px;border-radius:3px;background:var(--bar)}
+.sw.part{background:repeating-linear-gradient(135deg,var(--bar) 0 2px,transparent 2px 5px);border:1.5px solid var(--bar)}
+.sw.avg{height:0;border-top:2px dashed var(--ink);opacity:.55;border-radius:0}
+details.numbers summary{cursor:pointer;color:var(--accent);font-weight:700;min-height:32px;display:flex;align-items:center}
+table.nums{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
+table.nums th,table.nums td{text-align:left;padding:7px 4px;border-bottom:1px solid var(--line)}
+table.nums td:last-child,table.nums th:last-child{text-align:right}
+.empty-hero{display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:22px 18px}
 .made-by{text-align:center;font-size:13px;color:var(--muted);padding:6px 16px 22px;letter-spacing:.02em}
 .made-by b{font-family:var(--display);font-weight:800;font-size:15px;color:var(--accent);letter-spacing:.04em}
 
@@ -437,6 +478,61 @@ var Core=(function(){
     return res;
   }
   function buyText(a,now){return a.buyToday?'Buy today':'Buy by '+fmtDay(a.buyDay,now);}
+  /* Spread the units used between two readings evenly over the hours between them,
+     then add them up by calendar day. A stretch with a jump up and no top-up is unknown, so it is left out. */
+  function usageDays(intervals){
+    var out={},i,iv,t,end,dayStart,key,rate;
+    for(i=0;i<intervals.length;i++){
+      iv=intervals[i];
+      if(iv.gap||!(iv.to>iv.from))continue;
+      rate=iv.used/(iv.to-iv.from);t=iv.from;
+      while(t<iv.to){
+        dayStart=Math.floor(t/DAY)*DAY;end=Math.min(iv.to,dayStart+DAY);
+        key=fromTs(dayStart).slice(0,10);
+        if(!out[key])out[key]={u:0,cov:0};
+        out[key].u+=rate*(end-t);out[key].cov+=end-t;
+        t=end;
+      }
+    }
+    return out;
+  }
+  var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  /* Bars for the chart. range is 'day' (last 14 days), 'week' (last 8 weeks, Monday to Sunday) or 'month' (last 6 months).
+     units is null when no reading covers that stretch; partial is true when readings cover only part of it. */
+  function buckets(intervals,now,range){
+    var days=usageDays(intervals),nowMs=ts(now),today=Math.floor(nowMs/DAY)*DAY,list=[],i,start,end;
+    function add(start,end,label,detail){
+      var u=0,cov=0,t,d;
+      for(t=start;t<end;t+=DAY){d=days[fromTs(t).slice(0,10)];if(d){u+=d.u;cov+=d.cov;}}
+      var span=Math.max(0,Math.min(end,nowMs)-start);
+      list.push({start:start,end:end,label:label,detail:detail,units:cov>0?u:null,cov:cov,
+        frac:span>0?Math.min(1,cov/span):0,partial:cov>0&&cov<span*0.95,current:nowMs<end});
+    }
+    if(range==='week'){
+      var dow=new Date(today).getUTCDay(),wk=today-((dow+6)%7)*DAY;
+      for(i=7;i>=0;i--){
+        start=wk-i*7*DAY;var sd=new Date(start);
+        add(start,start+7*DAY,sd.getUTCDate()+' '+MO[sd.getUTCMonth()],i===0?'This week':i===1?'Last week':'Week of '+fmtDay(fromTs(start),now));
+      }
+    }else if(range==='month'){
+      var td=new Date(today),y=td.getUTCFullYear(),mo=td.getUTCMonth();
+      for(i=5;i>=0;i--){
+        start=Date.UTC(y,mo-i,1);end=Date.UTC(y,mo-i+1,1);var md=new Date(start);
+        add(start,end,MO[md.getUTCMonth()],i===0?'This month':MONTHS[md.getUTCMonth()]+' '+md.getUTCFullYear());
+      }
+    }else{
+      for(i=13;i>=0;i--){
+        start=today-i*DAY;var dd=new Date(start);
+        add(start,start+DAY,String(dd.getUTCDate()),i===0?'Today':i===1?'Yesterday':fmtDay(fromTs(start),now));
+      }
+    }
+    return list;
+  }
+  /* Units used in this calendar day, this week (from Monday) and this month, from the readings so far. */
+  function periods(intervals,now){
+    var d=buckets(intervals,now,'day'),w=buckets(intervals,now,'week'),mo=buckets(intervals,now,'month');
+    return {today:d[d.length-1],yesterday:d[d.length-2],week:w[w.length-1],lastWeek:w[w.length-2],month:mo[mo.length-1],lastMonth:mo[mo.length-2]};
+  }
   /* What an amount of money buys at the price of the user's own recent receipts. */
   function quote(amount,a){
     if(a.rate===null||!(amount>0))return null;
@@ -484,14 +580,14 @@ var Core=(function(){
 
   function msgStatus(m,a,now){
     var L=['*Cashpower: '+m.name+'*'];
-    if(a.level==='none')L.push('No meter reading yet.');
-    else if(a.level==='wait')L.push(fmtU(a.est)+' units at the last reading ('+fmtWhen(fromTs(a.anchor.t),now)+').');
+    if(a.level==='none'){L.push('No meter reading yet.');return L.join('\n');}
+    if(a.avg!==null&&a.avgSource==='meter')L.push('We use about '+fmtU(a.avg)+' units a day'+(a.costPerDay!==null?' (about '+fmtD(a.costPerDay)+' a day).':'.'));
+    var p=periods(a.intervals,now);
+    if(p.week.units!==null)L.push('This week so far: '+fmtU(p.week.units)+' units.');
+    if(p.month.units!==null)L.push('This month so far: '+fmtU(p.month.units)+' units.');
+    if(a.level==='wait')L.push(fmtU(a.est)+' units at the last reading ('+fmtWhen(fromTs(a.anchor.t),now)+').');
     else if(a.level==='empty')L.push('The units may be finished. Please check the meter.');
-    else{
-      L.push('About '+fmtU(a.est)+' units left'+(a.daysLeft!==null?', about '+fmtDur(a.daysLeft)+'.':'.'));
-      if(a.runOut){L.push('They run out around '+fmtDay(a.runOut)+', '+partOfDay(a.runOut)+'.');L.push(buyText(a)+'.');}
-    }
-    if(a.avg!==null&&a.avg>0.0001)L.push('We use about '+fmtU(a.avg)+' units a day'+(a.costPerDay!==null?' (about '+fmtD(a.costPerDay)+' a day).':'.'));
+    else L.push('About '+fmtU(a.est)+' units left on the meter'+(a.daysLeft!==null?', about '+fmtDur(a.daysLeft)+' at this rate.':'.'));
     return L.join('\n');
   }
   function msgSplit(m,amount,parts){
@@ -501,7 +597,7 @@ var Core=(function(){
   }
 
   return {PRESETS:PRESETS,TOL:TOL,MAX_EVENTS:MAX_EVENTS,isT:isT,ts:ts,fromTs:fromTs,nowT:nowT,fmtDay:fmtDay,fmtClock:fmtClock,fmtWhen:fmtWhen,partOfDay:partOfDay,dayDiff:dayDiff,r2:r2,fmtU:fmtU,fmtD:fmtD,fmtRate:fmtRate,fmtDur:fmtDur,
-    parseNum:parseNum,clean:clean,newId:newId,sortEvents:sortEvents,normalizeMeter:normalizeMeter,applianceUnits:applianceUnits,applianceTotal:applianceTotal,analyse:analyse,buyText:buyText,quote:quote,split:split,
+    parseNum:parseNum,clean:clean,newId:newId,sortEvents:sortEvents,normalizeMeter:normalizeMeter,applianceUnits:applianceUnits,applianceTotal:applianceTotal,analyse:analyse,buyText:buyText,usageDays:usageDays,buckets:buckets,periods:periods,quote:quote,split:split,
     validateReading:validateReading,validateTopup:validateTopup,validateAppliance:validateAppliance,msgStatus:msgStatus,msgSplit:msgSplit};
 })();
 window.CashpowerCore=Core;
@@ -511,7 +607,7 @@ window.CashpowerCore=Core;
    ===================================================================== */
 var KEY='cashpower-watch-v1';
 var state={meters:[],pristine:false};
-var ui={view:'home',mid:null,tab:'now',calc:''};
+var ui={view:'home',mid:null,tab:'now',calc:'',range:'day',sel:null};
 var storageOK=true;
 var view=document.getElementById('view');
 var sheet=document.getElementById('sheet');
@@ -532,38 +628,6 @@ function live(){
 function M(id){for(var i=0;i<state.meters.length;i++){var m=state.meters[i];if(m.id===id&&!m.deleted)return m;}return null;}
 function indexOfMeter(id){for(var i=0;i<state.meters.length;i++)if(state.meters[i].id===id)return i;return -1;}
 
-/* A made-up household so a first-time visitor sees a working screen. Times are placed relative to now. */
-function exampleMeter(now){
-  var day=now.slice(0,10)+'T00:00',base=Core.ts(day),DAY=86400000;
-  function at(d,h,mi){return Core.fromTs(base+d*DAY+h*3600000+mi*60000);}
-  var lastMs=Math.floor((Core.ts(now)-2*3600000)/300000)*300000,prevMs=Core.ts(at(-1,7,30));
-  if(lastMs<=prevMs)lastMs=prevMs+3600000;
-  var lastUnits=Core.r2(Math.max(0.5,25.3-6.9*(lastMs-prevMs)/DAY));
-  lastUnits=Math.round(lastUnits*10)/10;
-  return Core.normalizeMeter({id:'example1',name:'Home',lowDays:3,example:true,createdAt:0,updatedAt:0,
-    events:[
-      {id:'e1',kind:'reading',t:at(-9,8,0),units:31.2},
-      {id:'e2',kind:'reading',t:at(-8,7,30),units:24.6},
-      {id:'e3',kind:'reading',t:at(-7,20,15),units:14.1},
-      {id:'e4',kind:'topup',t:at(-6,18,40),amount:500,units:35.6,after:43.9},
-      {id:'e5',kind:'reading',t:at(-4,7,45),units:33.0},
-      {id:'e6',kind:'reading',t:at(-3,7,20),units:26.1},
-      {id:'e7',kind:'topup',t:at(-2,19,5),amount:200,units:14.3,after:29.1},
-      {id:'e8',kind:'reading',t:at(-1,7,30),units:25.3},
-      {id:'e9',kind:'reading',t:Core.fromTs(lastMs),units:lastUnits}
-    ],
-    appliances:[
-      {id:'a1',name:'LED bulb',watts:10,hours:6,count:6},
-      {id:'a2',name:'Standing fan',watts:55,hours:10,count:2},
-      {id:'a3',name:'Television',watts:80,hours:6,count:1},
-      {id:'a4',name:'Fridge',watts:120,hours:9,count:1},
-      {id:'a5',name:'Chest freezer',watts:150,hours:10,count:1},
-      {id:'a6',name:'Electric iron',watts:1000,hours:0.3,count:1},
-      {id:'a7',name:'Phone charger',watts:10,hours:4,count:3}
-    ],
-    sharers:[{id:'s1',name:'Main house',shares:2},{id:'s2',name:'Lamin’s room',shares:1},{id:'s3',name:'Awa’s room',shares:1}]});
-}
-
 function loadLocal(){
   var raw=null;
   try{raw=window.localStorage.getItem(KEY);}catch(e){storageOK=false;}
@@ -577,7 +641,7 @@ function loadLocal(){
       }
     }catch(e){}
   }
-  state.meters=[exampleMeter(N())];state.pristine=true;
+  state.meters=[];state.pristine=true;
 }
 function saveLocal(){
   if(state.pristine)return;
@@ -733,53 +797,62 @@ function levelPill(a,now){
   if(a.level==='none')return '<span class="pill plain">No reading yet</span>';
   if(a.level==='wait')return '<span class="pill plain">Needs one more reading</span>';
   if(a.level==='empty')return '<span class="pill bad">Units may be finished</span>';
-  if(a.daysLeft===null)return '<span class="pill good">No units used lately</span>';
-  return '<span class="pill '+a.level+'">'+esc(Core.buyText(a,now))+'</span>';
+  if(a.level==='bad'||a.level==='warn')return '<span class="pill '+a.level+'">Units running low</span>';
+  return '';
 }
 
 function viewHome(){
   var now=N(),meters=live(),note=storageNote(),h='';
   h+='<header class="brand">'+ICON.bolt+'<h1>Cashpower Watch</h1></header>';
-  h+='<p class="lede">Know how many days of units you have left, and the day to buy more.</p>';
+  h+='<p class="lede">See how much electricity your home uses, day by day, week by week and month by month.</p>';
   h+='<span id="store-chip" class="'+note.cls+'">'+esc(note.text)+'</span>';
-  if(meters.some(function(m){return m.example;}))h+='<div class="notice"><span>The meter marked Example has made-up readings so you can see how this works. Add your own meter, then delete the example.</span></div>';
-  if(!meters.length)h+='<section class="card pad stack"><h2 class="h2">No meter yet</h2><p class="muted">Add your meter and type the units it is showing. That is all it takes to start.</p></section>';
+  if(!meters.length){
+    h+='<section class="card empty-hero"><h2 class="h2">Start with your meter</h2><p class="muted">Add your meter and type the units it is showing now. Read it again each day, and the app shows how much you use.</p><button class="btn primary"'+act('add-meter')+'>Add my meter</button></section>';
+  }
   meters.forEach(function(m){
-    var a=Core.analyse(m,now);
+    var a=Core.analyse(m,now),p=Core.periods(a.intervals,now);
     h+='<button class="mcard lvl-'+a.level+'"'+act('open-meter',m.id)+'>';
     h+='<span class="top"><span class="name">'+esc(m.name)+(m.example?' <span class="tag">Example</span>':'')+'</span><span class="go">Open</span></span>';
     if(a.level==='none')h+='<span class="muted">Enter the units showing on the meter to start.</span>';
-    else if(a.level==='wait')h+='<span class="big num">'+Core.fmtU(a.est)+' units</span><span class="muted">at the last reading. Enter another reading tomorrow.</span>';
-    else if(a.level==='empty')h+='<span class="big">Units may be finished</span>';
-    else if(a.daysLeft===null)h+='<span class="big num">'+Core.fmtU(a.est)+' units left</span>';
-    else h+='<span class="big num">About '+esc(Core.fmtDur(a.daysLeft))+' left</span><span class="muted num">About '+Core.fmtU(a.est)+' units, using '+Core.fmtU(a.avg)+' a day</span>';
-    h+='<span class="foot">'+levelPill(a,now)+'</span></button>';
+    else if(a.avgSource!=='meter')h+='<span class="big num">'+Core.fmtU(a.est)+' units</span><span class="muted">at the last reading. Enter another reading tomorrow to see your use.</span>';
+    else{
+      h+='<span class="big num">'+Core.fmtU(a.avg)+' units a day</span>';
+      var bits=[];
+      if(p.week.units!==null)bits.push('This week '+Core.fmtU(p.week.units));
+      if(p.month.units!==null)bits.push('this month '+Core.fmtU(p.month.units));
+      if(a.est!==null)bits.push('about '+Core.fmtU(a.est)+' left');
+      h+='<span class="muted num">'+esc(bits.join(' · '))+'</span>';
+    }
+    var pill=levelPill(a,now);
+    if(pill)h+='<span class="foot">'+pill+'</span>';
+    h+='</button>';
   });
-  h+='<div class="btn-row"><button class="btn primary grow"'+act('add-meter')+'>Add a meter</button><button class="btn grow"'+act('backup')+'>Backup and restore</button></div>';
+  if(meters.length)h+='<div class="btn-row"><button class="btn primary grow"'+act('add-meter')+'>Add a meter</button><button class="btn grow"'+act('backup')+'>Backup and restore</button></div>';
+  else h+='<button class="btn block"'+act('backup')+'>Restore a backup</button>';
   h+='<section class="card pad stack"><p class="eyebrow">How it works</p><ol class="steps">'+
      '<li><span>Type the units showing on your meter.</span></li>'+
-     '<li><span>Do it again tomorrow. Now the app knows how many units you use in a day.</span></li>'+
-     '<li><span>Add each top-up: what you paid and the units on the receipt.</span></li>'+
-     '<li><span>See how many days are left, the day to buy by, and what each day costs you.</span></li></ol></section>';
+     '<li><span>Read it again each day, at about the same time if you can.</span></li>'+
+     '<li><span>When you load cashpower, add the top-up too, so the jump in units is not counted as use.</span></li>'+
+     '<li><span>See what you use each day, week and month, on a chart.</span></li></ol></section>';
   h+='<p class="foot-note">This is not a NAWEC app and it cannot read your meter. Every figure comes from the readings and receipts you type in.</p>';
   return h;
 }
 
 function heroHtml(m,a,now){
-  var h='<section class="hero lvl-'+a.level+'" aria-label="Units left">';
+  var cls=a.level==='empty'?'lvl-empty':(a.level==='none'||a.level==='wait')?'lvl-none':'lvl-good';
+  var h='<section class="hero '+cls+'" aria-label="Your usage">';
   h+='<div class="hero-main">';
   if(a.level==='none'){
     h+='<p class="hero-big words">No reading yet</p><p class="hero-line">Type the units showing on your meter to start.</p>';
-  }else if(a.level==='wait'){
-    h+='<p class="hero-big words">Enter one more reading</p><p class="hero-line">Read the meter again tomorrow. With two readings the app can work out your daily use and the days left.</p>';
+  }else if(a.avg===null){
+    h+='<p class="hero-big words">Enter one more reading</p><p class="hero-line">Read the meter again tomorrow. With two readings the app can show how much you use.</p>';
   }else if(a.level==='empty'){
     h+='<p class="hero-big words">Units may be finished</p><p class="hero-line">By your usual use, the units have run out. Check the meter, then enter a reading or add a top-up.</p>';
-  }else if(a.daysLeft===null){
-    h+='<p class="hero-lab">Units left</p><p class="hero-big num" data-fit>'+Core.fmtU(a.est)+'</p><p class="hero-line">No units were used between your last readings, so there is no end day to show.</p>';
   }else{
-    h+='<p class="hero-lab">Units will last about</p><p class="hero-big num" data-fit>'+esc(Core.fmtDur(a.daysLeft))+'</p>';
-    h+='<p class="hero-line">Runs out around <strong>'+esc(Core.fmtDay(a.runOut,now))+'</strong>, '+Core.partOfDay(a.runOut)+'.</p>';
-    h+='<p class="hero-buy">'+esc(Core.buyText(a,now))+'</p>';
+    h+='<p class="hero-lab">'+(a.avgSource==='meter'?'You use about':'Your appliance list uses about')+'</p>';
+    h+='<p class="hero-big num" data-fit>'+Core.fmtU(a.avg)+'</p><p class="hero-line">units a day'+(a.costPerDay!==null?', about '+esc(Core.fmtD(a.costPerDay))+' a day':'')+'</p>';
+    if(a.avgSource==='meter')h+='<p class="hero-sub">Average of the last '+esc(Core.fmtDur(a.basisDays))+' of readings</p>';
+    if(a.level==='bad'||a.level==='warn')h+='<p class="hero-low">Units running low: about '+esc(Core.fmtDur(a.daysLeft))+' left</p>';
   }
   h+='</div>';
   if(a.est!==null){
@@ -793,12 +866,11 @@ function viewMeter(m){
   var now=N(),a=Core.analyse(m,now),h='';
   h+='<button class="back"'+act('go-home')+'>'+ICON.back+'All meters</button>';
   h+='<h1 class="title">'+esc(m.name)+(m.example?' <span class="tag">Example</span>':'')+'</h1>';
-  if(m.example)h+='<div class="notice"><span>Made-up readings, to show how it works.</span><button class="btn small"'+act('add-meter')+'>Add my meter</button></div>';
   h+=heroHtml(m,a,now);
   h+='<div class="btn-row"><button class="btn primary grow"'+act('add-reading')+'>Enter meter reading</button><button class="btn grow"'+act('add-topup')+'>Add a top-up</button></div>';
   if(a.since!==null&&a.since>5&&a.level!=='none')h+='<p class="alert">Your last reading was '+esc(Core.fmtDur(a.since))+' ago. Enter a new one so the days left stay right.</p>';
-  if(a.gaps)h+='<p class="alert">'+(a.gaps===1?'One reading went':a.gaps+' readings went')+' up with no top-up recorded. Add the missing top-up in the Log so your daily use is right.</p>';
-  var tabs=[['now','Now'],['log','Log'],['appliances','Appliances'],['more','More']];
+  if(a.gaps)h+='<p class="alert">'+(a.gaps===1?'One reading went':a.gaps+' readings went')+' up with no top-up recorded. Add the missing top-up in the Log so your usage is right.</p>';
+  var tabs=[['now','Usage'],['log','Log'],['appliances','Appliances'],['more','More']];
   h+='<div class="tabs" role="tablist" aria-label="Sections">';
   tabs.forEach(function(t){h+='<button role="tab" aria-selected="'+(ui.tab===t[0])+'"'+act('tab',t[0])+'>'+t[1]+'</button>';});
   h+='</div>';
@@ -816,22 +888,116 @@ function calcAnswer(a){
   var q=Core.quote(amount,a);
   return Core.fmtD(amount)+' buys about '+Core.fmtU(q.units)+' units'+(q.days!==null?', which is about '+Core.fmtDur(q.days)+' of power.':'.');
 }
+function usedTile(label,b,sub){
+  var v=b&&b.units!==null?Core.fmtU(b.units):'–';
+  var s=b&&b.units!==null?(b.partial||b.current?sub+(b.partial?' (readings so far)':''):sub):'No readings for this yet';
+  return '<div class="tile"><p class="v num" data-fit>'+v+'</p><p class="k">'+label+'</p><p class="s">'+esc(s)+'</p></div>';
+}
 function tabNow(m,a,now){
-  var h='<div class="tiles">';
-  h+='<div class="tile"><p class="v num" data-fit>'+(a.avg!==null?Core.fmtU(a.avg):'–')+'</p><p class="k">Units a day</p><p class="s">'+(a.avgSource==='meter'?'From '+esc(Core.fmtDur(a.basisDays))+' of readings':a.avgSource==='appliances'?'From your appliance list':'Needs two readings')+'</p></div>';
-  h+='<div class="tile"><p class="v num" data-fit>'+(a.costPerDay!==null?Core.fmtD(a.costPerDay):'–')+'</p><p class="k">Cost a day</p><p class="s">'+(a.costPerDay!==null?'About '+Core.fmtD(a.costPerDay*30)+' in 30 days':'Needs a top-up and your daily use')+'</p></div>';
-  h+='<div class="tile"><p class="v num" data-fit>'+(a.rate!==null?Core.fmtRate(a.rate):'–')+'</p><p class="k">Price of one unit</p><p class="s">'+(a.rate!==null?'From your last '+(a.tops>=3?'3 top-ups':a.tops===2?'2 top-ups':'top-up'):'Needs a top-up')+'</p></div>';
-  h+='<div class="tile"><p class="v num" data-fit>'+Core.fmtD(a.month.spent)+'</p><p class="k">Paid this month</p><p class="s">'+(a.month.count?a.month.count+(a.month.count===1?' top-up, ':' top-ups, ')+Core.fmtU(a.month.units)+' units':'No top-up this month')+'</p></div>';
+  var p=Core.periods(a.intervals,now),h='';
+  h+='<div class="tiles">';
+  h+=usedTile('Units yesterday',p.yesterday,'Midnight to midnight');
+  h+=usedTile('Units this week',p.week,'Since Monday');
+  h+=usedTile('Units this month',p.month,'Since the 1st');
+  if(a.rate!==null&&p.month.units!==null)h+='<div class="tile"><p class="v num" data-fit>'+Core.fmtD(p.month.units*a.rate)+'</p><p class="k">Cost this month</p><p class="s">Units used × your price of '+Core.fmtRate(a.rate)+' a unit</p></div>';
+  else h+=usedTile('Units last month',p.lastMonth,'Whole month');
   h+='</div>';
-  h+='<section class="card pad stack"><p class="eyebrow">How long will a top-up last?</p>';
-  if(a.rate===null)h+='<p class="muted">Add one top-up with the units from its receipt. Then you can check what any amount will buy before you pay.</p>';
-  else{
-    h+='<div class="calc"><span>D</span><input type="text" inputmode="decimal" id="calc-amount" aria-label="Amount in dalasi" placeholder="500" autocomplete="off" data-fk="calc" value="'+esc(ui.calc)+'"></div>';
-    h+='<p class="answer num" id="calc-answer" role="status">'+esc(calcAnswer(a))+'</p>';
-    h+='<p class="hint">Worked out from your own last receipts. The units on your next receipt are what counts.</p>';
+  h+=chartCard(m,a,now);
+  h+='<button class="btn block"'+act('share-status')+(a.level==='none'?' disabled':'')+'>Send my usage on WhatsApp</button>';
+  return h;
+}
+
+/* ---- usage chart: one series of bars, tap or hover a bar for its figure ---- */
+/* A round step for the axis (1, 2 or 5 times a power of ten) giving three or four gridlines. */
+function niceStep(v){
+  if(!(v>0))return 1;
+  var raw=v/3.2,p=Math.pow(10,Math.floor(Math.log(raw)/Math.LN10)),n=raw/p;
+  return (n<=1?1:n<=2?2:n<=5?5:10)*p;
+}
+function barPath(x,y,w,h,r){
+  r=Math.min(r,w/2,h);
+  if(h<=0)return '';
+  return 'M'+x+','+(y+h)+'V'+(y+r)+'Q'+x+','+y+' '+(x+r)+','+y+'H'+(x+w-r)+'Q'+(x+w)+','+y+' '+(x+w)+','+(y+r)+'V'+(y+h)+'Z';
+}
+function chartCard(m,a,now){
+  var range=ui.range,list=Core.buckets(a.intervals,now,range),h='';
+  var has=list.some(function(b){return b.units!==null;});
+  h+='<section class="card pad stack" aria-label="Usage chart">';
+  h+='<div class="chart-head"><p class="eyebrow">Units used</p><div class="seg" role="group" aria-label="Show usage by">';
+  [['day','Day'],['week','Week'],['month','Month']].forEach(function(r){h+='<button aria-pressed="'+(range===r[0])+'"'+act('range',r[0])+'>'+r[1]+'</button>';});
+  h+='</div></div>';
+  if(!has){
+    h+='<p class="muted">'+(a.readings<2?'Your chart starts after your second meter reading. Read the meter again tomorrow.':'No readings fall in this stretch yet.')+'</p></section>';
+    return h;
   }
+  var sel=ui.sel;
+  if(sel===null||sel<0||sel>=list.length||list[sel].units===null){sel=null;for(var k=list.length-1;k>=0;k--)if(list[k].units!==null){sel=k;break;}}
+  var W=340,H=190,L=34,R=8,T=22,B=24,pw=W-L-R,ph=H-T-B,n=list.length;
+  var max=0;list.forEach(function(b){if(b.units!==null&&b.units>max)max=b.units;});
+  var showAvg=range==='day'&&a.avgSource==='meter'&&a.avg>0;
+  if(showAvg&&a.avg>max)max=a.avg;
+  var step=niceStep(max*1.08),ticks=Math.max(1,Math.ceil(max*1.08/step)),top=step*ticks,slot=pw/n,gap=Math.max(2,Math.min(8,slot*0.28)),bw=slot-gap;
+  function Y(v){return T+ph-ph*(v/top);}
+  var svg='<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(chartSummary(list,range))+'">';
+  svg+='<defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="var(--card)"/><rect width="2" height="5" fill="var(--bar)"/></pattern></defs>';
+  for(var g=0;g<=ticks;g++){
+    var gv=step*g,gy=Y(gv);
+    if(g>0)svg+='<line class="gl" x1="'+L+'" x2="'+(W-R)+'" y1="'+gy.toFixed(1)+'" y2="'+gy.toFixed(1)+'"/>';
+    svg+='<text class="ax" x="'+(L-6)+'" y="'+(gy+3.5).toFixed(1)+'" text-anchor="end">'+fmtTick(gv)+'</text>';
+  }
+  if(sel!==null)svg+='<rect class="selbg" x="'+(L+sel*slot).toFixed(1)+'" y="'+T+'" width="'+slot.toFixed(1)+'" height="'+ph+'" rx="6"/>';
+  list.forEach(function(b,i){
+    var x=L+i*slot+gap/2;
+    if(b.units!==null){
+      var y=Y(b.units),bh=Math.max(T+ph-y,b.units>0?2:0);
+      var d=barPath(x.toFixed(1)*1,(T+ph-bh).toFixed(1)*1,bw.toFixed(1)*1,bh,4);
+      if(d){
+        if(b.partial)svg+='<path class="b part" d="'+d+'"/><path class="b part-edge" d="'+d+'"/>';
+        else svg+='<path class="b" d="'+d+'"/>';
+      }
+    }
+    var showLabel=range!=='day'||n<=8||i%2===(n-1)%2||i===sel;
+    if(showLabel)svg+='<text class="ax'+(i===sel?' sel':'')+'" x="'+(x+bw/2).toFixed(1)+'" y="'+(H-7)+'" text-anchor="middle">'+esc(b.label)+'</text>';
+  });
+  svg+='<line class="base" x1="'+L+'" x2="'+(W-R)+'" y1="'+(T+ph)+'" y2="'+(T+ph)+'"/>';
+  if(showAvg){
+    var ay=Y(a.avg).toFixed(1);
+    svg+='<line class="avg" x1="'+L+'" x2="'+(W-R)+'" y1="'+ay+'" y2="'+ay+'"/>';
+  }
+  if(sel!==null){
+    var sb=list[sel],sx=L+sel*slot+slot/2,sy=Y(sb.units)-6;
+    svg+='<text class="val" x="'+Math.min(W-R-14,Math.max(L+14,sx)).toFixed(1)+'" y="'+Math.max(12,sy).toFixed(1)+'" text-anchor="middle">'+Core.fmtU(sb.units)+'</text>';
+  }
+  list.forEach(function(b,i){
+    if(b.units===null)return;
+    svg+='<rect class="hit" x="'+(L+i*slot).toFixed(1)+'" y="0" width="'+slot.toFixed(1)+'" height="'+H+'" data-bar="'+i+'" tabindex="0" role="button" aria-label="'+esc(b.detail+': '+Core.fmtU(b.units)+' units')+'"'+act('bar',String(i))+'/>';
+  });
+  svg+='</svg>';
+  h+=svg;
+  h+='<div class="detail" id="chart-detail" role="status">'+detailHtml(sel===null?null:list[sel],a,range)+'</div>';
+  var anyPart=list.some(function(b){return b.partial;});
+  h+='<div class="legend"><span><i class="sw"></i>Units used</span>'+(anyPart?'<span><i class="sw part"></i>Not complete yet, or readings missing</span>':'')+(showAvg?'<span><i class="sw avg"></i>Your average, '+Core.fmtU(a.avg)+' a day</span>':'')+'</div>';
+  h+='<details class="numbers"><summary>See the numbers</summary><table class="nums"><thead><tr><th>'+(range==='day'?'Day':range==='week'?'Week':'Month')+'</th><th>Units</th></tr></thead><tbody>';
+  list.slice().reverse().forEach(function(b){h+='<tr><td>'+esc(b.detail)+'</td><td class="num">'+(b.units===null?'–':Core.fmtU(b.units)+(b.partial?' *':''))+'</td></tr>';});
+  h+='</tbody></table>'+(anyPart?'<p class="hint">* Not complete: this period is still going, or some readings are missing, so the full figure will be higher.</p>':'')+'</details>';
   h+='</section>';
-  h+='<button class="btn block"'+act('share-status')+(a.level==='none'?' disabled':'')+'>Send the status on WhatsApp</button>';
+  return h;
+}
+function fmtTick(v){return v>=10?String(Math.round(v)):String(Math.round(v*10)/10);}
+function chartSummary(list,range){
+  var parts=[];list.forEach(function(b){if(b.units!==null)parts.push(b.detail+' '+Core.fmtU(b.units));});
+  return 'Units used by '+range+'. '+parts.join(', ')+'.';
+}
+function detailHtml(b,a,range){
+  if(!b)return '';
+  var per=range==='day'?null:(b.cov>0?b.units/(b.cov/86400000):null);
+  var h='<span class="d1">'+esc(b.detail)+'</span><span class="d2 num">'+Core.fmtU(b.units)+' <small style="font-size:14px;font-weight:700">units</small></span>';
+  var bits=[];
+  if(a.rate!==null)bits.push('about '+Core.fmtD(b.units*a.rate));
+  if(per!==null)bits.push('about '+Core.fmtU(per)+' a day');
+  if(b.partial)bits.push(b.current?'so far, up to your last reading':'readings cover only part of it');
+  else if(b.current)bits.push('so far');
+  if(bits.length)h+='<span class="d3">'+esc(bits.join(' · ').replace(/^./,function(c){return c.toUpperCase();}))+'</span>';
   return h;
 }
 
@@ -895,6 +1061,14 @@ function tabAppliances(m,a){
 
 function tabMore(m,a){
   var h='';
+  h+='<section class="card pad stack"><p class="eyebrow">What a top-up buys</p>';
+  if(a.rate===null)h+='<p class="muted">Add one top-up with the units from its receipt. Then you can check what any amount will buy.</p>';
+  else{
+    h+='<div class="calc"><span>D</span><input type="text" inputmode="decimal" id="calc-amount" aria-label="Amount in dalasi" placeholder="500" autocomplete="off" data-fk="calc" value="'+esc(ui.calc)+'"></div>';
+    h+='<p class="answer num" id="calc-answer" role="status">'+esc(calcAnswer(a))+'</p>';
+    h+='<p class="hint">Worked out from your own last receipts at '+Core.fmtRate(a.rate)+' a unit.</p>';
+  }
+  h+='</section>';
   h+='<section class="card"><div class="cardhead stack"><p class="eyebrow">Sharing one meter</p><p class="muted">For a compound where several rooms or families pay for the same meter. Give each one a number of shares.</p></div>';
   if(m.sharers.length){
     var S=0;m.sharers.forEach(function(s){S+=s.shares;});
@@ -946,7 +1120,7 @@ function render(){
 }
 function go(v,mid){
   ui.view=v;ui.mid=mid||null;
-  if(v==='meter'){ui.tab='now';ui.calc='';}
+  if(v==='meter'){ui.tab='now';ui.calc='';ui.sel=null;}
   render();
   try{window.scrollTo(0,0);}catch(e){}
 }
@@ -1113,6 +1287,8 @@ var actions={
   'go-home':function(){go('home');},
   'open-meter':function(el){if(M(el.getAttribute('data-id')))go('meter',el.getAttribute('data-id'));},
   'tab':function(el){ui.tab=el.getAttribute('data-id');render();},
+  'range':function(el){ui.range=el.getAttribute('data-id');ui.sel=null;render();},
+  'bar':function(el){ui.sel=+el.getAttribute('data-id');render();var f=view.querySelector('[data-bar="'+ui.sel+'"]');if(f)try{f.focus({preventScroll:true});}catch(e){}},
   'add-meter':function(){meterSheet(null);},
   'edit-meter':function(){var m=cur();if(m)meterSheet(m);},
   'add-reading':function(){if(cur())readingSheet();},
@@ -1123,7 +1299,7 @@ var actions={
     m.events.forEach(function(x){if(x.id===id)e=x;});
     if(!e)return;
     var what=e.kind==='topup'?'top-up of '+Core.fmtD(e.amount):'reading of '+Core.fmtU(e.units)+' units';
-    confirmSheet('Delete this '+(e.kind==='topup'?'top-up':'reading')+'?','The '+what+' from '+midWhen(e.t)+' is removed and the days left are worked out again.','Delete',true,function(){
+    confirmSheet('Delete this '+(e.kind==='topup'?'top-up':'reading')+'?','The '+what+' from '+midWhen(e.t)+' is removed and your usage is worked out again.','Delete',true,function(){
       var m2=cur();if(!m2)return;
       m2.events=m2.events.filter(function(x){return x.id!==id;});
       closeSheet();commit(m2);toast('Deleted');
@@ -1277,6 +1453,14 @@ document.addEventListener('change',function(ev){
     reader.readAsText(t.files[0]);
   }
 });
+document.addEventListener('pointerover',function(ev){
+  if(ev.pointerType&&ev.pointerType!=='mouse')return;
+  var el=ev.target.closest?ev.target.closest('[data-bar]'):null;
+  if(!el||ui.view!=='meter')return;
+  var m=M(ui.mid);if(!m)return;
+  var now=N(),a=Core.analyse(m,now),list=Core.buckets(a.intervals,now,ui.range),i=+el.getAttribute('data-bar'),box=document.getElementById('chart-detail');
+  if(box&&list[i]&&list[i].units!==null)box.innerHTML=detailHtml(list[i],a,ui.range);
+});
 sheet.addEventListener('close',function(){if(!sheet.open){sheetYes=null;sheet.innerHTML='';}});
 sheet.addEventListener('cancel',function(){sheetYes=null;});
 var fitTimer=null;
@@ -1293,6 +1477,7 @@ function start(data){
   if(saved&&typeof saved==='object'&&saved.view==='meter'&&typeof saved.mid==='string'&&M(saved.mid)){
     ui.view='meter';ui.mid=saved.mid;
     ui.tab=['now','log','appliances','more'].indexOf(saved.tab)>=0?saved.tab:'now';
+    if(['day','week','month'].indexOf(saved.range)>=0)ui.range=saved.range;
   }else if(saved&&typeof saved==='object'&&saved.view==='home'){
     ui.view='home';
   }else if(l.length===1){
@@ -1302,7 +1487,7 @@ function start(data){
   startCloud(0);
 }
 var hot=window.claude&&window.claude.hot;
-if(hot&&typeof hot.snapshot==='function'){try{hot.snapshot(function(){return {ui:{view:ui.view,mid:ui.mid,tab:ui.tab}};});}catch(e){}}
+if(hot&&typeof hot.snapshot==='function'){try{hot.snapshot(function(){return {ui:{view:ui.view,mid:ui.mid,tab:ui.tab,range:ui.range}};});}catch(e){}}
 if(hot&&typeof hot.ready==='function'){try{hot.ready(start);}catch(e){start({});}}
 else start((hot&&hot.data)||{});
 })();

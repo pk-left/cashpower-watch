@@ -2,23 +2,23 @@
 
 **Live app: [setalnawec.netlify.app](https://setalnawec.netlify.app)**
 
-A simple phone app for NAWEC cashpower (prepaid electricity) in the Gambia. You type in your meter readings and top-up receipts, and it tells you:
+A simple phone app for tracking NAWEC cashpower (prepaid electricity) use in the Gambia. You type in your meter readings and top-ups, and it shows:
 
-- how many units you have left right now, and how many days they will last
-- the day to buy by, before the units run out
-- how many units you use in a day and what that costs you in dalasi
-- how long a top-up of any amount will last
+- how many units you use a day on average, and what that costs in dalasi
+- your usage yesterday, this week and this month
+- a chart of units used by day, week or month (tap a bar for its figure)
+- how many units are left on the meter, with a gentle note when they are running low
 - which appliances use the most power
 - how to split a top-up between households that share one meter
 
-You can also send the status straight to WhatsApp.
+You can also send your usage straight to WhatsApp.
 
 ## How it works
 
 1. Type the units showing on your meter.
-2. Do it again the next day. The app now knows how many units you use in a day.
-3. Add each top-up: what you paid and the units on the receipt.
-4. See how many days are left, the day to buy by, and the cost per day.
+2. Read it again each day, at about the same time if you can.
+3. When you load cashpower, add the top-up too, so the jump in units is not counted as use.
+4. See what you use each day, week and month, on a chart.
 
 It is not a NAWEC app and it cannot read your meter. Every figure comes from the readings and receipts you type in.
 

@@ -165,7 +165,7 @@ a{color:var(--accent)}
 .hero-line{font-size:17px}
 .hero-buy{align-self:flex-start;margin-top:2px;padding:5px 12px;border-radius:999px;font-weight:700;background:rgba(255,255,255,.2)}
 .hero.lvl-warn .hero-buy{background:rgba(43,29,0,.14)}
-.lcd{flex:0 0 auto;min-width:126px;background:var(--lcd);color:var(--lcd-ink);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;align-items:flex-end;gap:2px;border:3px solid rgba(0,0,0,.28);box-shadow:inset 0 2px 6px rgba(0,0,0,.18)}
+.lcd{flex:0 0 auto;min-width:126px;max-width:100%;background:var(--lcd);color:var(--lcd-ink);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;align-items:flex-end;gap:2px;border:3px solid rgba(0,0,0,.28);box-shadow:inset 0 2px 6px rgba(0,0,0,.18)}
 .lcd-lab{font-family:var(--display);font-weight:600;font-size:12px;letter-spacing:.1em;text-transform:uppercase;align-self:flex-start;opacity:.8}
 .lcd-num{font-family:var(--display);font-weight:800;font-size:44px;line-height:1;letter-spacing:.03em;white-space:nowrap}
 .lcd-unit{font-size:12px;font-weight:700;opacity:.8}
@@ -262,6 +262,14 @@ details.numbers summary{cursor:pointer;color:var(--accent);font-weight:700;min-h
 table.nums{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
 table.nums th,table.nums td{text-align:left;padding:7px 4px;border-bottom:1px solid var(--line)}
 table.nums td:last-child,table.nums th:last-child{text-align:right}
+.appl .info{gap:3px}
+.appl .usebar{height:8px;margin-top:6px}
+.appl .usebar>span{background:var(--bar)}
+.appl .amt{min-width:84px}
+.totals{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.totals strong{font-family:var(--display);font-weight:800;font-size:22px}
+.lcd.cost .lcd-num{font-size:34px}
+.mini{display:flex;flex-direction:column;gap:10px}
 .empty-hero{display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:22px 18px}
 .made-by{text-align:center;font-size:13px;color:var(--muted);padding:6px 16px 22px;letter-spacing:.02em}
 .made-by b{font-family:var(--display);font-weight:800;font-size:15px;color:var(--accent);letter-spacing:.04em}
@@ -292,7 +300,7 @@ table.nums td:last-child,table.nums th:last-child{text-align:right}
 var Core=(function(){
   var WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   var MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  var DAY=86400000, TOL=0.15, WINDOW=14, MIN_SPAN=0.25, MAX_EVENTS=2000;
+  var DEFAULT_PRICE=13.5, DAY=86400000, TOL=0.15, WINDOW=14, MIN_SPAN=0.25, MAX_EVENTS=2000;
   /* Typical power of common appliances, in watts, with typical hours of running a day. Starting points only: the label on the appliance is the truth. */
   var PRESETS=[['LED bulb',10,6],['Tube light',20,6],['Standing fan',55,10],['Ceiling fan',75,10],['Television',80,6],['Decoder or Wi-Fi router',15,12],['Phone charger',10,4],['Laptop',60,5],['Fridge',120,9],['Chest freezer',150,10],['Electric iron',1000,0.5],['Electric kettle',1800,0.25],['Rice cooker',700,1],['Blender',400,0.1],['Microwave',1000,0.25],['Washing machine',500,0.5],['Water pump',750,1],['Air conditioner (1 hp)',1000,6]];
 
@@ -404,7 +412,7 @@ var Core=(function(){
         sharers.push({id:x.id,name:sn,shares:(num(x.shares,1,20)&&Math.floor(x.shares)===x.shares)?x.shares:1});
       }
     }
-    var m={id:raw.id,name:name,lowDays:(num(raw.lowDays,1,14)&&Math.floor(raw.lowDays)===raw.lowDays)?raw.lowDays:3,events:events,appliances:appliances,sharers:sharers,
+    var m={id:raw.id,name:name,price:num(raw.price,0.01,1000)?r2(raw.price):DEFAULT_PRICE,lowDays:(num(raw.lowDays,1,14)&&Math.floor(raw.lowDays)===raw.lowDays)?raw.lowDays:3,events:events,appliances:appliances,sharers:sharers,
       createdAt:(typeof raw.createdAt==='number'&&isFinite(raw.createdAt))?raw.createdAt:0,updatedAt:updatedAt};
     if(raw.example===true)m.example=true;
     return m;
@@ -579,15 +587,16 @@ var Core=(function(){
   }
 
   function msgStatus(m,a,now){
-    var L=['*Cashpower: '+m.name+'*'];
-    if(a.level==='none'){L.push('No meter reading yet.');return L.join('\n');}
-    if(a.avg!==null&&a.avgSource==='meter')L.push('We use about '+fmtU(a.avg)+' units a day'+(a.costPerDay!==null?' (about '+fmtD(a.costPerDay)+' a day).':'.'));
-    var p=periods(a.intervals,now);
-    if(p.week.units!==null)L.push('This week so far: '+fmtU(p.week.units)+' units.');
-    if(p.month.units!==null)L.push('This month so far: '+fmtU(p.month.units)+' units.');
-    if(a.level==='wait')L.push(fmtU(a.est)+' units at the last reading ('+fmtWhen(fromTs(a.anchor.t),now)+').');
-    else if(a.level==='empty')L.push('The units may be finished. Please check the meter.');
-    else L.push('About '+fmtU(a.est)+' units left on the meter'+(a.daysLeft!==null?', about '+fmtDur(a.daysLeft)+' at this rate.':'.'));
+    var L=['*Electricity use: '+m.name+'*'],day=applianceTotal(m),pr=m.price;
+    if(day>0){
+      L.push('Our appliances use about '+fmtU(day)+' kWh a day, about '+fmtD(day*pr)+' a day.');
+      L.push('About '+fmtU(day*7)+' kWh a week ('+fmtD(day*7*pr)+') and '+fmtU(day*30)+' kWh a month ('+fmtD(day*30*pr)+').');
+      var top=m.appliances.slice().sort(function(x,y){return applianceUnits(y)-applianceUnits(x);})[0];
+      if(top)L.push('Biggest user: '+top.name+(top.count>1?' x'+top.count:'')+', about '+fmtD(applianceUnits(top)*30*pr)+' a month.');
+    }
+    if(a.avgSource==='meter'&&a.avg!==null)L.push('Our meter shows about '+fmtU(a.avg)+' kWh a day ('+fmtD(a.avg*pr)+').');
+    if(L.length===1)L.push('No appliances added yet.');
+    L.push('Price used: D'+(Math.round(pr*100)/100)+' per kWh.');
     return L.join('\n');
   }
   function msgSplit(m,amount,parts){
@@ -596,7 +605,7 @@ var Core=(function(){
     return L.join('\n');
   }
 
-  return {PRESETS:PRESETS,TOL:TOL,MAX_EVENTS:MAX_EVENTS,isT:isT,ts:ts,fromTs:fromTs,nowT:nowT,fmtDay:fmtDay,fmtClock:fmtClock,fmtWhen:fmtWhen,partOfDay:partOfDay,dayDiff:dayDiff,r2:r2,fmtU:fmtU,fmtD:fmtD,fmtRate:fmtRate,fmtDur:fmtDur,
+  return {DEFAULT_PRICE:DEFAULT_PRICE,PRESETS:PRESETS,TOL:TOL,MAX_EVENTS:MAX_EVENTS,isT:isT,ts:ts,fromTs:fromTs,nowT:nowT,fmtDay:fmtDay,fmtClock:fmtClock,fmtWhen:fmtWhen,partOfDay:partOfDay,dayDiff:dayDiff,r2:r2,fmtU:fmtU,fmtD:fmtD,fmtRate:fmtRate,fmtDur:fmtDur,
     parseNum:parseNum,clean:clean,newId:newId,sortEvents:sortEvents,normalizeMeter:normalizeMeter,applianceUnits:applianceUnits,applianceTotal:applianceTotal,analyse:analyse,buyText:buyText,usageDays:usageDays,buckets:buckets,periods:periods,quote:quote,split:split,
     validateReading:validateReading,validateTopup:validateTopup,validateAppliance:validateAppliance,msgStatus:msgStatus,msgSplit:msgSplit};
 })();
@@ -607,7 +616,7 @@ window.CashpowerCore=Core;
    ===================================================================== */
 var KEY='cashpower-watch-v1';
 var state={meters:[],pristine:false};
-var ui={view:'home',mid:null,tab:'now',calc:'',range:'day',sel:null};
+var ui={view:'home',mid:null,tab:'now',calc:'',range:'day',sel:null,per:'month'};
 var storageOK=true;
 var view=document.getElementById('view');
 var sheet=document.getElementById('sheet');
@@ -793,6 +802,9 @@ function act(name,id){
   if(id!==undefined)s+=' data-id="'+esc(id)+'"';
   return s;
 }
+var PER={day:{n:1,label:'a day',word:'Day'},week:{n:7,label:'a week',word:'Week'},month:{n:30,label:'a month',word:'Month'}};
+function kwhDay(m){return Core.applianceTotal(m);}
+function fmtP(p){return 'D'+(Math.round(p*100)/100).toFixed(2).replace(/\.00$/,'');}
 function levelPill(a,now){
   if(a.level==='none')return '<span class="pill plain">No reading yet</span>';
   if(a.level==='wait')return '<span class="pill plain">Needs one more reading</span>';
@@ -804,106 +816,126 @@ function levelPill(a,now){
 function viewHome(){
   var now=N(),meters=live(),note=storageNote(),h='';
   h+='<header class="brand">'+ICON.bolt+'<h1>Cashpower Watch</h1></header>';
-  h+='<p class="lede">See how much electricity your home uses, day by day, week by week and month by month.</p>';
+  h+='<p class="lede">Work out how much electricity your home uses and what it costs, by the day, week and month.</p>';
   h+='<span id="store-chip" class="'+note.cls+'">'+esc(note.text)+'</span>';
   if(!meters.length){
-    h+='<section class="card empty-hero"><h2 class="h2">Start with your meter</h2><p class="muted">Add your meter and type the units it is showing now. Read it again each day, and the app shows how much you use.</p><button class="btn primary"'+act('add-meter')+'>Add my meter</button></section>';
+    h+='<section class="card empty-hero"><h2 class="h2">Start with your home</h2><p class="muted">Add your home, then list the things you plug in. You see the kWh and the cost straight away.</p><button class="btn primary"'+act('add-meter')+'>Add my home</button></section>';
   }
   meters.forEach(function(m){
-    var a=Core.analyse(m,now),p=Core.periods(a.intervals,now);
-    h+='<button class="mcard lvl-'+a.level+'"'+act('open-meter',m.id)+'>';
+    var a=Core.analyse(m,now),d=kwhDay(m);
+    h+='<button class="mcard lvl-good"'+act('open-meter',m.id)+'>';
     h+='<span class="top"><span class="name">'+esc(m.name)+(m.example?' <span class="tag">Example</span>':'')+'</span><span class="go">Open</span></span>';
-    if(a.level==='none')h+='<span class="muted">Enter the units showing on the meter to start.</span>';
-    else if(a.avgSource!=='meter')h+='<span class="big num">'+Core.fmtU(a.est)+' units</span><span class="muted">at the last reading. Enter another reading tomorrow to see your use.</span>';
-    else{
-      h+='<span class="big num">'+Core.fmtU(a.avg)+' units a day</span>';
-      var bits=[];
-      if(p.week.units!==null)bits.push('This week '+Core.fmtU(p.week.units));
-      if(p.month.units!==null)bits.push('this month '+Core.fmtU(p.month.units));
-      if(a.est!==null)bits.push('about '+Core.fmtU(a.est)+' left');
-      h+='<span class="muted num">'+esc(bits.join(' · '))+'</span>';
-    }
-    var pill=levelPill(a,now);
-    if(pill)h+='<span class="foot">'+pill+'</span>';
+    if(d>0){
+      h+='<span class="big num">'+Core.fmtD(d*30*m.price)+' a month</span>';
+      h+='<span class="muted num">'+esc(Core.fmtU(d)+' kWh a day · '+Core.fmtD(d*m.price)+' a day · '+m.appliances.length+(m.appliances.length===1?' appliance':' appliances'))+'</span>';
+    }else if(a.avgSource==='meter'){
+      h+='<span class="big num">'+Core.fmtU(a.avg)+' kWh a day</span><span class="muted num">Measured on the meter · about '+esc(Core.fmtD(a.avg*m.price))+' a day</span>';
+    }else h+='<span class="muted">Add your appliances to see your use and cost.</span>';
     h+='</button>';
   });
-  if(meters.length)h+='<div class="btn-row"><button class="btn primary grow"'+act('add-meter')+'>Add a meter</button><button class="btn grow"'+act('backup')+'>Backup and restore</button></div>';
+  if(meters.length)h+='<div class="btn-row"><button class="btn primary grow"'+act('add-meter')+'>Add another home</button><button class="btn grow"'+act('backup')+'>Backup and restore</button></div>';
   else h+='<button class="btn block"'+act('backup')+'>Restore a backup</button>';
   h+='<section class="card pad stack"><p class="eyebrow">How it works</p><ol class="steps">'+
-     '<li><span>Type the units showing on your meter.</span></li>'+
-     '<li><span>Read it again each day, at about the same time if you can.</span></li>'+
-     '<li><span>When you load cashpower, add the top-up too, so the jump in units is not counted as use.</span></li>'+
-     '<li><span>See what you use each day, week and month, on a chart.</span></li></ol></section>';
-  h+='<p class="foot-note">This is not a NAWEC app and it cannot read your meter. Every figure comes from the readings and receipts you type in.</p>';
+     '<li><span>Add the things you plug in: lights, fans, fridge, TV, iron and so on.</span></li>'+
+     '<li><span>For each one, give its watts (on the label) and how many hours a day it runs.</span></li>'+
+     '<li><span>See the kWh and the cost for a day, a week and a month, and which appliance costs the most.</span></li>'+
+     '<li><span>Optional: read your meter on the Meter tab to compare with what you really use.</span></li></ol></section>';
+  h+='<p class="foot-note">This is not a NAWEC app and it cannot read your meter. Figures come from the appliances and readings you type in, at the price per kWh you set.</p>';
   return h;
 }
 
 function heroHtml(m,a,now){
-  var cls=a.level==='empty'?'lvl-empty':(a.level==='none'||a.level==='wait')?'lvl-none':'lvl-good';
-  var h='<section class="hero '+cls+'" aria-label="Your usage">';
-  h+='<div class="hero-main">';
-  if(a.level==='none'){
-    h+='<p class="hero-big words">No reading yet</p><p class="hero-line">Type the units showing on your meter to start.</p>';
-  }else if(a.avg===null){
-    h+='<p class="hero-big words">Enter one more reading</p><p class="hero-line">Read the meter again tomorrow. With two readings the app can show how much you use.</p>';
-  }else if(a.level==='empty'){
-    h+='<p class="hero-big words">Units may be finished</p><p class="hero-line">By your usual use, the units have run out. Check the meter, then enter a reading or add a top-up.</p>';
-  }else{
-    h+='<p class="hero-lab">'+(a.avgSource==='meter'?'You use about':'Your appliance list uses about')+'</p>';
-    h+='<p class="hero-big num" data-fit>'+Core.fmtU(a.avg)+'</p><p class="hero-line">units a day'+(a.costPerDay!==null?', about '+esc(Core.fmtD(a.costPerDay))+' a day':'')+'</p>';
-    if(a.avgSource==='meter')h+='<p class="hero-sub">Average of the last '+esc(Core.fmtDur(a.basisDays))+' of readings</p>';
-    if(a.level==='bad'||a.level==='warn')h+='<p class="hero-low">Units running low: about '+esc(Core.fmtDur(a.daysLeft))+' left</p>';
+  var d=kwhDay(m),pr=m.price,h;
+  if(!(d>0)){
+    h='<section class="hero lvl-none" aria-label="Your usage"><div class="hero-main">';
+    h+='<p class="hero-big words">Add your appliances</p><p class="hero-line">List what you plug in, its watts and the hours a day it runs. The kWh and cost show up straight away.</p>';
+    h+='<button class="btn" style="align-self:flex-start;margin-top:4px"'+act('add-appliance')+'>Add an appliance</button>';
+    return h+'</div></section>';
   }
+  h='<section class="hero lvl-good" aria-label="Your usage"><div class="hero-main">';
+  h+='<p class="hero-lab">Your appliances use about</p>';
+  h+='<p class="hero-big num" data-fit>'+Core.fmtU(d)+'</p><p class="hero-line">kWh a day, about <strong>'+esc(Core.fmtD(d*pr))+'</strong> a day</p>';
+  h+='<p class="hero-sub num">'+esc(Core.fmtD(d*7*pr))+' a week · at '+esc(fmtP(pr))+' per kWh</p>';
   h+='</div>';
-  if(a.est!==null){
-    h+='<div class="lcd"><span class="lcd-lab">'+(a.avg!==null?'Units now':'Last reading')+'</span><span class="lcd-num num">'+Core.fmtU(a.est)+'</span><span class="lcd-unit">kWh'+(a.avg!==null?' · estimate':'')+'</span></div>';
-  }
+  h+='<div class="lcd cost"><span class="lcd-lab">Cost a month</span><span class="lcd-num num">'+esc(Core.fmtD(d*30*pr))+'</span><span class="lcd-unit">'+esc(Core.fmtU(d*30))+' kWh</span></div>';
   h+='</section>';
   return h;
 }
 
+/* The meter balance, only on the Meter tab. */
+function balanceHtml(m,a,now){
+  var h='<section class="card pad stack" aria-label="Units on the meter"><p class="eyebrow">Units on the meter</p>';
+  if(a.level==='none')return h+'<p class="muted">Enter the units showing on your meter to see how long they will last.</p></section>';
+  h+='<div class="tiles">';
+  h+='<div class="tile"><p class="v num" data-fit>'+Core.fmtU(a.est)+'</p><p class="k">'+(a.avg!==null?'Units now':'Units at last reading')+'</p><p class="s">'+(a.avg!==null?'Estimate from your use':esc(Core.fmtWhen(Core.fromTs(a.anchor.t),now)))+'</p></div>';
+  var left='–',sub='Needs your daily use';
+  if(a.level==='empty'){left='0';sub='The units may be finished';}
+  else if(a.daysLeft!==null){left=Core.fmtDur(a.daysLeft);sub='Runs out around '+Core.fmtDay(a.runOut,now);}
+  else if(a.avg!==null&&a.avg<=0.0001){sub='No use between readings';}
+  h+='<div class="tile"><p class="v num" data-fit>'+esc(left)+'</p><p class="k">Will last about</p><p class="s">'+esc(sub)+'</p></div></div>';
+  if(a.avg!==null)h+='<p class="hint">Worked out from '+(a.avgSource==='meter'?'what your meter readings show you use':'your appliance list')+', '+Core.fmtU(a.avg)+' kWh a day.</p>';
+  if(a.level==='bad'||a.level==='warn')h+='<p class="alert">Units running low.</p>';
+  return h+'</section>';
+}
+
 function viewMeter(m){
   var now=N(),a=Core.analyse(m,now),h='';
-  h+='<button class="back"'+act('go-home')+'>'+ICON.back+'All meters</button>';
+  h+='<button class="back"'+act('go-home')+'>'+ICON.back+'All homes</button>';
   h+='<h1 class="title">'+esc(m.name)+(m.example?' <span class="tag">Example</span>':'')+'</h1>';
   h+=heroHtml(m,a,now);
-  h+='<div class="btn-row"><button class="btn primary grow"'+act('add-reading')+'>Enter meter reading</button><button class="btn grow"'+act('add-topup')+'>Add a top-up</button></div>';
-  if(a.since!==null&&a.since>5&&a.level!=='none')h+='<p class="alert">Your last reading was '+esc(Core.fmtDur(a.since))+' ago. Enter a new one so the days left stay right.</p>';
-  if(a.gaps)h+='<p class="alert">'+(a.gaps===1?'One reading went':a.gaps+' readings went')+' up with no top-up recorded. Add the missing top-up in the Log so your usage is right.</p>';
-  var tabs=[['now','Usage'],['log','Log'],['appliances','Appliances'],['more','More']];
+  var tabs=[['now','Usage'],['meter','Meter'],['more','More']];
   h+='<div class="tabs" role="tablist" aria-label="Sections">';
   tabs.forEach(function(t){h+='<button role="tab" aria-selected="'+(ui.tab===t[0])+'"'+act('tab',t[0])+'>'+t[1]+'</button>';});
   h+='</div>';
-  if(ui.tab==='log')h+=tabLog(m,a,now);
-  else if(ui.tab==='appliances')h+=tabAppliances(m,a);
+  if(ui.tab==='meter')h+=tabMeter(m,a,now);
   else if(ui.tab==='more')h+=tabMore(m,a);
   else h+=tabNow(m,a,now);
   return h;
 }
 
-function calcAnswer(a){
+function calcAnswer(m,a){
   var amount=Core.parseNum(ui.calc);
-  if(a.rate===null)return '';
   if(isNaN(amount)||amount<=0)return '';
-  var q=Core.quote(amount,a);
-  return Core.fmtD(amount)+' buys about '+Core.fmtU(q.units)+' units'+(q.days!==null?', which is about '+Core.fmtDur(q.days)+' of power.':'.');
-}
-function usedTile(label,b,sub){
-  var v=b&&b.units!==null?Core.fmtU(b.units):'–';
-  var s=b&&b.units!==null?(b.partial||b.current?sub+(b.partial?' (readings so far)':''):sub):'No readings for this yet';
-  return '<div class="tile"><p class="v num" data-fit>'+v+'</p><p class="k">'+label+'</p><p class="s">'+esc(s)+'</p></div>';
+  var units=amount/m.price,per=a.avgSource==='meter'?a.avg:kwhDay(m);
+  return Core.fmtD(amount)+' buys about '+Core.fmtU(units)+' kWh'+(per>0.0001?', which lasts about '+Core.fmtDur(units/per)+' at your use.':'.');
 }
 function tabNow(m,a,now){
-  var p=Core.periods(a.intervals,now),h='';
-  h+='<div class="tiles">';
-  h+=usedTile('Units yesterday',p.yesterday,'Midnight to midnight');
-  h+=usedTile('Units this week',p.week,'Since Monday');
-  h+=usedTile('Units this month',p.month,'Since the 1st');
-  if(a.rate!==null&&p.month.units!==null)h+='<div class="tile"><p class="v num" data-fit>'+Core.fmtD(p.month.units*a.rate)+'</p><p class="k">Cost this month</p><p class="s">Units used × your price of '+Core.fmtRate(a.rate)+' a unit</p></div>';
-  else h+=usedTile('Units last month',p.lastMonth,'Whole month');
-  h+='</div>';
-  h+=chartCard(m,a,now);
-  h+='<button class="btn block"'+act('share-status')+(a.level==='none'?' disabled':'')+'>Send my usage on WhatsApp</button>';
+  var per=PER[ui.per]?ui.per:'month',P=PER[per],pr=m.price,d=kwhDay(m),h='';
+  h+='<section class="card pad stack" aria-label="Appliance breakdown">';
+  h+='<div class="chart-head"><p class="eyebrow">What uses the power</p><div class="seg" role="group" aria-label="Show figures for">';
+  ['day','week','month'].forEach(function(k){h+='<button aria-pressed="'+(per===k)+'"'+act('per',k)+'>'+PER[k].word+'</button>';});
+  h+='</div></div>';
+  if(!m.appliances.length){
+    h+='<p class="muted">Nothing listed yet. Add the things you plug in to see what each one uses and costs.</p>';
+  }else{
+    h+='<div class="tiles"><div class="tile"><p class="v num" data-fit>'+Core.fmtU(d*P.n)+'</p><p class="k">kWh '+P.label+'</p><p class="s">All appliances'+(per==='month'?', 30 days':'')+'</p></div>';
+    h+='<div class="tile"><p class="v num" data-fit>'+Core.fmtD(d*P.n*pr)+'</p><p class="k">Cost '+P.label+'</p><p class="s">At '+esc(fmtP(pr))+' per kWh</p></div></div>';
+    var list=m.appliances.slice().sort(function(x,y){return Core.applianceUnits(y)-Core.applianceUnits(x);});
+    var top=Core.applianceUnits(list[0])||1;
+    h+='<ul class="list appl">';
+    list.forEach(function(x){
+      var u=Core.applianceUnits(x)*P.n,share=d>0?Math.round(100*Core.applianceUnits(x)/d):0;
+      h+='<li><button class="rowbtn"'+act('edit-appliance',x.id)+' aria-label="Edit '+esc(x.name)+'"><span class="info"><span class="nm">'+esc(x.name)+(x.count>1?' × '+x.count:'')+'</span><span class="sub num">'+x.watts+' W, '+x.hours+(x.hours===1?' hour':' hours')+' a day · '+share+'% of the total</span><span class="usebar" aria-hidden="true"><span style="width:'+Math.max(2,Math.round(100*Core.applianceUnits(x)/top))+'%"></span></span></span>';
+      h+='<span class="amt num">'+Core.fmtD(u*pr)+'<small>'+(u<10?u.toFixed(2):Core.fmtU(u))+' kWh</small></span></button></li>';
+    });
+    h+='</ul>';
+  }
+  h+='<button class="btn primary block"'+act('add-appliance')+(m.appliances.length>=60?' disabled':'')+'>Add an appliance</button>';
+  h+='<p class="hint">Tap an appliance to change its watts or hours. The watts offered for common appliances are typical figures; the label on yours is more exact.</p>';
+  h+='</section>';
+  if(a.avgSource==='meter'||a.intervals.length){
+    h+=chartCard(m,a,now);
+    if(a.avgSource==='meter'&&d>0){
+      var diff=a.avg-d,msg;
+      if(diff>0.5)msg='Your meter shows about '+Core.fmtU(a.avg)+' kWh a day, '+Core.fmtU(diff)+' more than your list. Something is missing from the list, or runs longer than you entered.';
+      else if(diff<-0.5)msg='Your meter shows about '+Core.fmtU(a.avg)+' kWh a day, less than your list. Some hours are probably lower than you entered.';
+      else msg='Your meter shows about '+Core.fmtU(a.avg)+' kWh a day, which matches your list.';
+      h+='<p class="notice"><span>'+esc(msg)+'</span></p>';
+    }
+  }else{
+    h+='<section class="card pad stack"><p class="eyebrow">Check against your meter (optional)</p><p class="muted">Read your cashpower meter on two different days and the real kWh you used shows here as a chart, next to this estimate.</p><button class="btn"'+act('tab','meter')+'>Go to the Meter tab</button></section>';
+  }
+  h+='<button class="btn block"'+act('share-status')+(!(d>0)&&a.avgSource!=='meter'?' disabled':'')+'>Send on WhatsApp</button>';
   return h;
 }
 
@@ -923,7 +955,7 @@ function chartCard(m,a,now){
   var range=ui.range,list=Core.buckets(a.intervals,now,range),h='';
   var has=list.some(function(b){return b.units!==null;});
   h+='<section class="card pad stack" aria-label="Usage chart">';
-  h+='<div class="chart-head"><p class="eyebrow">Units used</p><div class="seg" role="group" aria-label="Show usage by">';
+  h+='<div class="chart-head"><p class="eyebrow">Measured on your meter</p><div class="seg" role="group" aria-label="Show measured use by">';
   [['day','Day'],['week','Week'],['month','Month']].forEach(function(r){h+='<button aria-pressed="'+(range===r[0])+'"'+act('range',r[0])+'>'+r[1]+'</button>';});
   h+='</div></div>';
   if(!has){
@@ -970,14 +1002,14 @@ function chartCard(m,a,now){
   }
   list.forEach(function(b,i){
     if(b.units===null)return;
-    svg+='<rect class="hit" x="'+(L+i*slot).toFixed(1)+'" y="0" width="'+slot.toFixed(1)+'" height="'+H+'" data-bar="'+i+'" tabindex="0" role="button" aria-label="'+esc(b.detail+': '+Core.fmtU(b.units)+' units')+'"'+act('bar',String(i))+'/>';
+    svg+='<rect class="hit" x="'+(L+i*slot).toFixed(1)+'" y="0" width="'+slot.toFixed(1)+'" height="'+H+'" data-bar="'+i+'" tabindex="0" role="button" aria-label="'+esc(b.detail+': '+Core.fmtU(b.units)+' kWh')+'"'+act('bar',String(i))+'/>';
   });
   svg+='</svg>';
   h+=svg;
   h+='<div class="detail" id="chart-detail" role="status">'+detailHtml(sel===null?null:list[sel],a,range)+'</div>';
   var anyPart=list.some(function(b){return b.partial;});
-  h+='<div class="legend"><span><i class="sw"></i>Units used</span>'+(anyPart?'<span><i class="sw part"></i>Not complete yet, or readings missing</span>':'')+(showAvg?'<span><i class="sw avg"></i>Your average, '+Core.fmtU(a.avg)+' a day</span>':'')+'</div>';
-  h+='<details class="numbers"><summary>See the numbers</summary><table class="nums"><thead><tr><th>'+(range==='day'?'Day':range==='week'?'Week':'Month')+'</th><th>Units</th></tr></thead><tbody>';
+  h+='<div class="legend"><span><i class="sw"></i>kWh used</span>'+(anyPart?'<span><i class="sw part"></i>Not complete yet, or readings missing</span>':'')+(showAvg?'<span><i class="sw avg"></i>Your average, '+Core.fmtU(a.avg)+' kWh a day</span>':'')+'</div>';
+  h+='<details class="numbers"><summary>See the numbers</summary><table class="nums"><thead><tr><th>'+(range==='day'?'Day':range==='week'?'Week':'Month')+'</th><th>kWh</th></tr></thead><tbody>';
   list.slice().reverse().forEach(function(b){h+='<tr><td>'+esc(b.detail)+'</td><td class="num">'+(b.units===null?'–':Core.fmtU(b.units)+(b.partial?' *':''))+'</td></tr>';});
   h+='</tbody></table>'+(anyPart?'<p class="hint">* Not complete: this period is still going, or some readings are missing, so the full figure will be higher.</p>':'')+'</details>';
   h+='</section>';
@@ -986,14 +1018,14 @@ function chartCard(m,a,now){
 function fmtTick(v){return v>=10?String(Math.round(v)):String(Math.round(v*10)/10);}
 function chartSummary(list,range){
   var parts=[];list.forEach(function(b){if(b.units!==null)parts.push(b.detail+' '+Core.fmtU(b.units));});
-  return 'Units used by '+range+'. '+parts.join(', ')+'.';
+  return 'kWh used by '+range+'. '+parts.join(', ')+'.';
 }
 function detailHtml(b,a,range){
   if(!b)return '';
   var per=range==='day'?null:(b.cov>0?b.units/(b.cov/86400000):null);
-  var h='<span class="d1">'+esc(b.detail)+'</span><span class="d2 num">'+Core.fmtU(b.units)+' <small style="font-size:14px;font-weight:700">units</small></span>';
+  var h='<span class="d1">'+esc(b.detail)+'</span><span class="d2 num">'+Core.fmtU(b.units)+' <small style="font-size:14px;font-weight:700">kWh</small></span>';
   var bits=[];
-  if(a.rate!==null)bits.push('about '+Core.fmtD(b.units*a.rate));
+  var cm=M(ui.mid);if(cm)bits.push('about '+Core.fmtD(b.units*cm.price));
   if(per!==null)bits.push('about '+Core.fmtU(per)+' a day');
   if(b.partial)bits.push(b.current?'so far, up to your last reading':'readings cover only part of it');
   else if(b.current)bits.push('so far');
@@ -1001,9 +1033,22 @@ function detailHtml(b,a,range){
   return h;
 }
 
+function tabMeter(m,a,now){
+  var h='<p class="muted">Optional. Use this if you want to follow the units on your cashpower meter: how many are left and how long they will last. It also gives your real use for the chart on the Usage tab.</p>';
+  h+='<div class="btn-row"><button class="btn primary grow"'+act('add-reading')+'>Enter meter reading</button><button class="btn grow"'+act('add-topup')+'>Add a top-up</button></div>';
+  if(a.since!==null&&a.since>5&&a.level!=='none')h+='<p class="alert">Your last reading was '+esc(Core.fmtDur(a.since))+' ago. Enter a new one so these figures stay right.</p>';
+  if(a.gaps)h+='<p class="alert">'+(a.gaps===1?'One reading went':a.gaps+' readings went')+' up with no top-up recorded. Add the missing top-up so your use is right.</p>';
+  h+=balanceHtml(m,a,now);
+  h+='<section class="card pad stack"><p class="eyebrow">What a top-up buys</p>';
+  h+='<div class="calc"><span>D</span><input type="text" inputmode="decimal" id="calc-amount" aria-label="Amount in dalasi" placeholder="500" autocomplete="off" data-fk="calc" value="'+esc(ui.calc)+'"></div>';
+  h+='<p class="answer num" id="calc-answer" role="status">'+esc(calcAnswer(m,a))+'</p>';
+  h+='<p class="hint">At '+esc(fmtP(m.price))+' per kWh. The units on your receipt are what counts.</p></section>';
+  h+='<p class="eyebrow">Readings and top-ups</p>'+tabLog(m,a,now);
+  return h;
+}
 function tabLog(m,a,now){
   var ev=Core.sortEvents(m.events).reverse(),h='';
-  if(!ev.length)return '<section class="card pad stack"><h2 class="h2">Nothing in the log yet</h2><p class="muted">Each reading and each top-up you add is listed here, newest first.</p></section>';
+  if(!ev.length)return '<section class="card pad stack"><p class="muted">No readings or top-ups yet. Each one you add is listed here, newest first.</p></section>';
   h+='<section class="card"><ul class="list">';
   ev.forEach(function(e){
     h+='<li><span class="mark '+e.kind+'" aria-hidden="true"></span><div class="info">';
@@ -1061,14 +1106,12 @@ function tabAppliances(m,a){
 
 function tabMore(m,a){
   var h='';
-  h+='<section class="card pad stack"><p class="eyebrow">What a top-up buys</p>';
-  if(a.rate===null)h+='<p class="muted">Add one top-up with the units from its receipt. Then you can check what any amount will buy.</p>';
-  else{
-    h+='<div class="calc"><span>D</span><input type="text" inputmode="decimal" id="calc-amount" aria-label="Amount in dalasi" placeholder="500" autocomplete="off" data-fk="calc" value="'+esc(ui.calc)+'"></div>';
-    h+='<p class="answer num" id="calc-answer" role="status">'+esc(calcAnswer(a))+'</p>';
-    h+='<p class="hint">Worked out from your own last receipts at '+Core.fmtRate(a.rate)+' a unit.</p>';
-  }
-  h+='</section>';
+  h+='<section class="card pad stack"><p class="eyebrow">Settings</p><div class="rows">'+
+     '<div><span>Name</span><span>'+esc(m.name)+'</span></div>'+
+     '<div><span>Price per kWh</span><span class="num">'+esc(fmtP(m.price))+'</span></div>'+
+     '<div><span>Low units warning (Meter tab)</span><span class="num">'+m.lowDays+(m.lowDays===1?' day':' days')+' or less</span></div>'+
+     '<div><span>Appliances, readings and top-ups</span><span class="num">'+m.appliances.length+', '+a.readings+' and '+a.tops+'</span></div></div>'+
+     '<button class="btn block"'+act('edit-meter')+'>Change name, price or warning</button></section>';
   h+='<section class="card"><div class="cardhead stack"><p class="eyebrow">Sharing one meter</p><p class="muted">For a compound where several rooms or families pay for the same meter. Give each one a number of shares.</p></div>';
   if(m.sharers.length){
     var S=0;m.sharers.forEach(function(s){S+=s.shares;});
@@ -1079,12 +1122,7 @@ function tabMore(m,a){
     h+='</ul>';
   }
   h+='<div class="cardfoot btn-row"><button class="btn grow"'+act('add-sharer')+(m.sharers.length>=50?' disabled':'')+'>Add a person or family</button><button class="btn primary grow"'+act('split')+(m.sharers.length<2?' disabled':'')+'>Split a top-up</button></div></section>';
-  h+='<section class="card pad stack"><p class="eyebrow">This meter</p><div class="rows">'+
-     '<div><span>Name</span><span>'+esc(m.name)+'</span></div>'+
-     '<div><span>Warn me when units will last</span><span class="num">'+m.lowDays+(m.lowDays===1?' day':' days')+' or less</span></div>'+
-     '<div><span>Readings and top-ups saved</span><span class="num">'+a.readings+' and '+a.tops+'</span></div></div>'+
-     '<button class="btn block"'+act('edit-meter')+'>Change name or warning</button></section>';
-  h+='<button class="btn danger block"'+act('delete-meter')+'>Delete this meter</button>';
+  h+='<button class="btn danger block"'+act('delete-meter')+'>Delete this home</button>';
   return h;
 }
 
@@ -1213,11 +1251,11 @@ function sharerSheet(m,s){
   openSheet(h);
 }
 function meterSheet(m){
-  var isNew=!m,h='<h2 id="sheet-title">'+(isNew?'Add a meter':'Change name or warning')+'</h2><form class="stack" data-form="save-meter" data-id="'+(isNew?'':esc(m.id))+'" novalidate>';
-  h+='<div class="field"><label for="m-name">Name of the meter</label><input type="text" id="m-name" maxlength="40" autocomplete="off" value="'+(isNew?'':esc(m.name))+'" placeholder="Home" data-autofocus></div>';
-  if(isNew)h+='<div class="field"><label for="m-units">Units showing on the meter now (optional)</label><input type="text" inputmode="decimal" id="m-units" autocomplete="off" placeholder="24.6"></div>';
-  h+='<div class="field"><label for="m-low">Warn me when units will last this many days or less</label><input type="text" inputmode="numeric" id="m-low" autocomplete="off" value="'+(isNew?3:m.lowDays)+'"></div>';
-  h+='<p class="err" id="m-err" role="alert"></p><div class="btn-row"><button class="btn primary grow" type="submit">'+(isNew?'Add meter':'Save')+'</button><button class="btn grow" type="button" data-act="sheet-close">Cancel</button></div></form>';
+  var isNew=!m,h='<h2 id="sheet-title">'+(isNew?'Add a home':'Change name, price or warning')+'</h2><form class="stack" data-form="save-meter" data-id="'+(isNew?'':esc(m.id))+'" novalidate>';
+  h+='<div class="field"><label for="m-name">Name</label><input type="text" id="m-name" maxlength="40" autocomplete="off" value="'+(isNew?'Home':esc(m.name))+'" placeholder="Home" data-autofocus></div>';
+  h+='<div class="field"><label for="m-price">Price per kWh, in dalasi</label><input type="text" inputmode="decimal" id="m-price" autocomplete="off" value="'+(isNew?Core.DEFAULT_PRICE:m.price)+'"><p class="hint">D'+Core.DEFAULT_PRICE+' unless NAWEC changes it.</p></div>';
+  if(!isNew)h+='<div class="field"><label for="m-low">Low units warning on the Meter tab: when units will last this many days or less</label><input type="text" inputmode="numeric" id="m-low" autocomplete="off" value="'+m.lowDays+'"></div>';
+  h+='<p class="err" id="m-err" role="alert"></p><div class="btn-row"><button class="btn primary grow" type="submit">'+(isNew?'Add home':'Save')+'</button><button class="btn grow" type="button" data-act="sheet-close">Cancel</button></div></form>';
   openSheet(h);
 }
 function lastTopupAmount(m){
@@ -1287,6 +1325,7 @@ var actions={
   'go-home':function(){go('home');},
   'open-meter':function(el){if(M(el.getAttribute('data-id')))go('meter',el.getAttribute('data-id'));},
   'tab':function(el){ui.tab=el.getAttribute('data-id');render();},
+  'per':function(el){ui.per=el.getAttribute('data-id');render();},
   'range':function(el){ui.range=el.getAttribute('data-id');ui.sel=null;render();},
   'bar':function(el){ui.sel=+el.getAttribute('data-id');render();var f=view.querySelector('[data-bar="'+ui.sel+'"]');if(f)try{f.focus({preventScroll:true});}catch(e){}},
   'add-meter':function(){meterSheet(null);},
@@ -1299,13 +1338,13 @@ var actions={
     m.events.forEach(function(x){if(x.id===id)e=x;});
     if(!e)return;
     var what=e.kind==='topup'?'top-up of '+Core.fmtD(e.amount):'reading of '+Core.fmtU(e.units)+' units';
-    confirmSheet('Delete this '+(e.kind==='topup'?'top-up':'reading')+'?','The '+what+' from '+midWhen(e.t)+' is removed and your usage is worked out again.','Delete',true,function(){
+    confirmSheet('Delete this '+(e.kind==='topup'?'top-up':'reading')+'?','The '+what+' from '+midWhen(e.t)+' is removed and the figures are worked out again.','Delete',true,function(){
       var m2=cur();if(!m2)return;
       m2.events=m2.events.filter(function(x){return x.id!==id;});
       closeSheet();commit(m2);toast('Deleted');
     });
   },
-  'share-status':function(){var m=cur();if(!m)return;var now=N();shareSheet('Send the status',Core.msgStatus(m,Core.analyse(m,now),now));},
+  'share-status':function(){var m=cur();if(!m)return;var now=N();shareSheet('Send on WhatsApp',Core.msgStatus(m,Core.analyse(m,now),now));},
   'add-appliance':function(){var m=cur();if(m&&m.appliances.length<60)applianceSheet(m,null);},
   'edit-appliance':function(el){var m=cur();if(!m)return;var id=el.getAttribute('data-id');m.appliances.forEach(function(x){if(x.id===id)applianceSheet(m,x);});},
   'remove-appliance':function(el){var m=cur();if(!m)return;var id=el.getAttribute('data-id');m.appliances=m.appliances.filter(function(x){return x.id!==id;});closeSheet();commit(m);},
@@ -1321,11 +1360,11 @@ var actions={
   },
   'delete-meter':function(){
     var m=cur();if(!m)return;
-    confirmSheet('Delete '+m.name+'?','The meter and all its readings and top-ups are removed. This cannot be undone.','Delete meter',true,function(){
+    confirmSheet('Delete '+m.name+'?','This home and all its appliances, readings and top-ups are removed. This cannot be undone.','Delete',true,function(){
       var i=indexOfMeter(m.id);if(i<0){closeSheet();go('home');return;}
       var tomb={id:m.id,deleted:true,updatedAt:state.meters[i].updatedAt||0};
       stamp(tomb);state.meters[i]=tomb;state.pristine=false;saveLocal();cloudDirty(tomb.id);
-      closeSheet();go('home');toast('Meter deleted');
+      closeSheet();go('home');toast('Deleted');
     });
   },
   'copy':function(el){copyFrom(el.getAttribute('data-target'),el);},
@@ -1396,23 +1435,20 @@ var forms={
     closeSheet();commit(m);
   },
   'save-meter':function(form){
-    var id=form.getAttribute('data-id'),name=Core.clean(val('m-name'),40),low=Core.parseNum(val('m-low')),err=document.getElementById('m-err');
-    if(!name){err.textContent='Give the meter a name, for example Home.';return;}
-    if(isNaN(low)||low<1||low>14||Math.floor(low)!==low){err.textContent='The warning must be a whole number of days from 1 to 14.';return;}
+    var id=form.getAttribute('data-id'),name=Core.clean(val('m-name'),40),price=Core.parseNum(val('m-price')),err=document.getElementById('m-err');
+    if(!name){err.textContent='Give it a name, for example Home.';return;}
+    if(isNaN(price)||price<0.01||price>1000){err.textContent='Enter the price per kWh in dalasi, for example 13.5.';return;}
+    price=Core.r2(price);
     if(id){
+      var low=Core.parseNum(val('m-low'));
+      if(isNaN(low)||low<1||low>14||Math.floor(low)!==low){err.textContent='The warning must be a whole number of days from 1 to 14.';return;}
       var m=M(id);if(!m){closeSheet();render();return;}
-      m.name=name;m.lowDays=low;closeSheet();commit(m);return;
+      m.name=name;m.price=price;m.lowDays=low;closeSheet();commit(m);return;
     }
-    var unitsRaw=val('m-units').trim(),events=[];
-    if(unitsRaw!==''){
-      var units=Core.parseNum(unitsRaw),e=Core.validateReading(units,N(),N());
-      if(e){err.textContent=e;return;}
-      events.push({id:Core.newId('e',rnd,7),kind:'reading',t:N(),units:Core.r2(units)});
-    }
-    var nm=Core.normalizeMeter({id:Core.newId('m',rnd,10),name:name,lowDays:low,events:events,appliances:[],sharers:[],createdAt:Date.now(),updatedAt:0});
+    var nm=Core.normalizeMeter({id:Core.newId('m',rnd,10),name:name,price:price,lowDays:3,events:[],appliances:[],sharers:[],createdAt:Date.now(),updatedAt:0});
     if(!nm){err.textContent='Check the details and try again.';return;}
     state.meters.push(nm);closeSheet();commit(nm,true);
-    go('meter',nm.id);toast('Meter added');
+    go('meter',nm.id);toast('Added. Now add your appliances.');
   }
 };
 
@@ -1434,7 +1470,7 @@ document.addEventListener('input',function(ev){
   else if(t.id==='calc-amount'){
     ui.calc=t.value;
     var m=ui.view==='meter'?M(ui.mid):null,out=document.getElementById('calc-answer');
-    if(m&&out)out.textContent=calcAnswer(Core.analyse(m,N()));
+    if(m&&out)out.textContent=calcAnswer(m,Core.analyse(m,N()));
   }else if(t.id==='split-amount'){
     var m2=ui.view==='meter'?M(ui.mid):null,box=document.getElementById('split-out'),err=document.getElementById('split-err');
     if(m2&&box){box.innerHTML=splitRows(m2,Core.parseNum(t.value));if(err)err.textContent='';}
@@ -1476,7 +1512,8 @@ function start(data){
   var saved=data&&data.ui,l=live();
   if(saved&&typeof saved==='object'&&saved.view==='meter'&&typeof saved.mid==='string'&&M(saved.mid)){
     ui.view='meter';ui.mid=saved.mid;
-    ui.tab=['now','log','appliances','more'].indexOf(saved.tab)>=0?saved.tab:'now';
+    ui.tab=saved.tab==='log'?'meter':['now','meter','more'].indexOf(saved.tab)>=0?saved.tab:'now';
+    if(PER[saved.per])ui.per=saved.per;
     if(['day','week','month'].indexOf(saved.range)>=0)ui.range=saved.range;
   }else if(saved&&typeof saved==='object'&&saved.view==='home'){
     ui.view='home';
@@ -1487,7 +1524,7 @@ function start(data){
   startCloud(0);
 }
 var hot=window.claude&&window.claude.hot;
-if(hot&&typeof hot.snapshot==='function'){try{hot.snapshot(function(){return {ui:{view:ui.view,mid:ui.mid,tab:ui.tab,range:ui.range}};});}catch(e){}}
+if(hot&&typeof hot.snapshot==='function'){try{hot.snapshot(function(){return {ui:{view:ui.view,mid:ui.mid,tab:ui.tab,range:ui.range,per:ui.per}};});}catch(e){}}
 if(hot&&typeof hot.ready==='function'){try{hot.ready(start);}catch(e){start({});}}
 else start((hot&&hot.data)||{});
 })();

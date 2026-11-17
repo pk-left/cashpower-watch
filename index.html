@@ -919,6 +919,7 @@ function viewHome(){
   h+='<header class="brand">'+ICON.holal+'<h1>Holal Cashpower Watch</h1><span class="sub">Cashpower Watch · look at your power</span></header>';
   h+='<p class="lede">Work out how much electricity your home uses and what it costs, by the day, week and month.</p>';
   h+='<span id="store-chip" class="'+note.cls+'">'+esc(note.text)+'</span>';
+  h+='<a class="btn block" href="sense.html">See the live meter demo (Holal Sense)</a>';
   if(!meters.length){
     h+='<section class="card empty-hero"><h2 class="h2">Start with your home</h2><p class="muted">Add your home, then list the things you plug in. You see the kWh and the cost straight away.</p><button class="btn primary"'+act('add-meter')+'>Add my home</button></section>';
   }
